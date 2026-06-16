@@ -977,6 +977,36 @@ monitors (e.g. UptimeRobot free tier) to alert if data goes stale.
 
 ---
 
+## Post-MVP Validation Phase (Multi-Source Verification)
+
+To avoid building complex verification systems around unproven or mirrored data feeds, the multi-source engine is split into a structured validation sequence:
+
+### Task 10.1 — Source Audit & Independence Verification
+*   **Goal:** Document all candidate feeds and verify whether they are independent or derived mirrors.
+*   **Verification Steps:**
+    *   Confirm Niriv Bazaar's vegetable rates explicitly reference Kalimati.
+    *   Test AMPIS (`ampis.gov.np`) endpoints manually across multiple days to check uptime, rate limits, and network block policies.
+*   **Deliverable:** `project docs/agricultural_sources_audit.md` (Created).
+
+### Task 10.2 — Source Registry Database Schema
+*   **Goal:** Build the metadata structure to support weighted sources and mark mirror relationships.
+*   **Schema Changes:**
+    *   Deploy the `sources` table to track independence (`is_independent`).
+    *   Convert `daily_prices.source` to `source_id` foreign key.
+*   **Deliverable:** `supabase/migration.sql` (Pushed to main).
+
+### Task 10.3 — Graceful Scraper Fallbacks
+*   **Goal:** Scrapers must skip timed-out candidate feeds (like AMPIS) and mark them as `Unavailable` in the UI rather than generating synthetic data.
+*   **Parser rules:**
+    *   No synthetic values.
+    *   Only save matched observations.
+    *   Failures are logged as warnings and skipped.
+
+### Task 10.4 — Weighted Consensus Engine
+*   **Goal:** Calculate consensus scores and confidence ratings dynamically only when multiple *independent* observations are present. Exclude mirror observations (e.g. Niriv) from validating Kalimati prices.
+
+---
+
 ## Appendix: File Creation Order
 
 For AI coding agents: create files in this order to avoid import errors.
