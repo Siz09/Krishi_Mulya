@@ -27,11 +27,22 @@ export type Commodity = {
   created_at: string;
 };
 
+export type Source = {
+  id: number;
+  slug: string;
+  name: string;
+  website: string | null;
+  is_independent: boolean;
+  source_type: 'board' | 'mirror' | 'cooperative' | 'api' | 'other';
+  created_at: string;
+};
+
 export type DailyPrice = {
   id: number;
   commodity_id: number;
   market: string;
-  source: string;
+  source_id: number;
+  sources?: Source;
   price_date: string; // ISO date string "YYYY-MM-DD"
   min_price: number | null;
   max_price: number | null;

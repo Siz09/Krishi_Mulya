@@ -121,16 +121,15 @@ export async function getObservationsForDate(
 ): Promise<DailyPrice[]> {
   const { data, error } = await supabase
     .from("daily_prices")
-    .select("*")
+    .select("*, sources(*)")
     .eq("commodity_id", commodityId)
     .eq("market", market)
-    .eq("price_date", priceDate)
-    .order("source", { ascending: true });
+    .eq("price_date", priceDate);
 
   if (error) {
     console.error(`[getObservationsForDate] commId=${commodityId} market=${market} date=${priceDate}`, error.message);
     return [];
   }
 
-  return (data as DailyPrice[]) ?? [];
+  return (data as any[]) ?? [];
 }

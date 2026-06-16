@@ -199,8 +199,13 @@ export default async function CommodityDetailPage(props: PageProps) {
                   <div className="flex flex-col gap-1.5">
                     {observations.map((obs) => (
                       <div key={obs.id} className="flex justify-between items-center text-xs p-2 bg-soil-50/50 rounded-lg border border-leaf-100/40">
-                        <span className="capitalize font-semibold text-soil-800/80">
-                          {obs.source === "official" ? "Official Board" : obs.source}
+                        <span className="capitalize font-semibold text-soil-800/80 flex items-center gap-1">
+                          {obs.sources?.name || "Unknown Source"}
+                          {!obs.sources?.is_independent && (
+                            <span className="text-[9px] px-1 bg-amber-100 text-amber-800 rounded font-normal normal-case">
+                              Mirror
+                            </span>
+                          )}
                         </span>
                         <span className="font-bold text-leaf-750">
                           {formatPrice(obs.avg_price, commodity.unit, "en", { priceOnly: true })}

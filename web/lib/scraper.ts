@@ -235,6 +235,16 @@ export async function runScrape(opts?: {
     console.log("[scraper] Commodities seeded successfully.");
   }
 
+  // Load source mapping slug -> id from database
+  const { data: sourceRows, error: sourceErr } = await supabase
+    .from("sources")
+    .select("id, slug");
+
+  if (sourceErr || !sourceRows || sourceRows.length === 0) {
+    throw new Error(`Failed to load sources mapping: ${sourceErr?.message}`);
+  }
+  const sourceMap = new Map(sourceRows.map((s) => [s.slug, s.id]));
+
   const { data: commodityRows, error: reloadErr } = await supabase
     .from("commodities")
     .select("id, slug, name_ne");
@@ -249,7 +259,7 @@ export async function runScrape(opts?: {
   type UpsertRow = {
     commodity_id: number;
     market: string;
-    source: string;
+    source_id: number;
     price_date: string;
     min_price: number | null;
     max_price: number | null;
@@ -272,6 +282,10 @@ export async function runScrape(opts?: {
   const butwalMap = new Map(butwalAmpisRows.map(r => [normaliseCommodityName(r.rawName), r]));
   const biratnagarMap = new Map(biratnagarAmpisRows.map(r => [normaliseCommodityName(r.rawName), r]));
 
+  const officialSourceId = sourceMap.get("official")!;
+  const nirivSourceId = sourceMap.get("niriv")!;
+  const ampisSourceId = sourceMap.get("ampis")!;
+
   for (const row of rawRows) {
     const cleaned = normaliseCommodityName(row.rawName);
     const mapEntry = COMMODITY_MAP.get(cleaned);
@@ -291,7 +305,7 @@ export async function runScrape(opts?: {
     toUpsert.push({
       commodity_id: dbEntry.id,
       market: "kalimati",
-      source: "official",
+      source_id: officialSourceId,
       price_date: priceDate,
       min_price: row.minPrice,
       max_price: row.maxPrice,
@@ -305,7 +319,7 @@ export async function runScrape(opts?: {
       toUpsert.push({
         commodity_id: dbEntry.id,
         market: "kalimati",
-        source: "niriv",
+        source_id: nirivSourceId,
         price_date: priceDate,
         min_price: nirivMatch.minPrice,
         max_price: nirivMatch.maxPrice,
@@ -320,7 +334,7 @@ export async function runScrape(opts?: {
       toUpsert.push({
         commodity_id: dbEntry.id,
         market: "pokhara",
-        source: "official",
+        source_id: ampisSourceId,
         price_date: priceDate,
         min_price: pokharaMatch.minPrice,
         max_price: pokharaMatch.maxPrice,
@@ -335,7 +349,7 @@ export async function runScrape(opts?: {
       toUpsert.push({
         commodity_id: dbEntry.id,
         market: "butwal",
-        source: "official",
+        source_id: ampisSourceId,
         price_date: priceDate,
         min_price: butwalMatch.minPrice,
         max_price: butwalMatch.maxPrice,
@@ -350,7 +364,7 @@ export async function runScrape(opts?: {
       toUpsert.push({
         commodity_id: dbEntry.id,
         market: "biratnagar",
-        source: "official",
+        source_id: ampisSourceId,
         price_date: priceDate,
         min_price: biratnagarMatch.minPrice,
         max_price: biratnagarMatch.maxPrice,
@@ -364,7 +378,7 @@ export async function runScrape(opts?: {
   if (toUpsert.length > 0) {
     const { error: upsertErr } = await supabase
       .from("daily_prices")
-      .upsert(toUpsert, { onConflict: "commodity_id,market,source,price_date" });
+      .upsert(toUpsert, { onConflict: "commodity_id,market,source_id,price_date" });
 
     if (upsertErr) {
       throw new Error(`Upsert failed: ${upsertErr.message}`);

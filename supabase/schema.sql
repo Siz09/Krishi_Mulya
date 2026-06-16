@@ -40,15 +40,29 @@ create index if not exists idx_commodities_slug
 
 
 -- ---------------------------------------------------------------------------
+-- sources
+-- Independent data sources or mirrors representing price information.
+-- ---------------------------------------------------------------------------
+create table if not exists sources (
+  id             serial primary key,
+  slug           text unique not null,
+  name           text not null,
+  website        text,
+  is_independent boolean not null default true,
+  source_type    text not null check (source_type in ('board', 'mirror', 'cooperative', 'api', 'other')),
+  created_at     timestamptz not null default now()
+);
+
+
+-- ---------------------------------------------------------------------------
 -- daily_prices
--- One row per commodity × market × day.
--- The unique constraint makes the scraper idempotent — safe to re-run.
+-- One row per commodity × market × source × day.
 -- ---------------------------------------------------------------------------
 create table if not exists daily_prices (
   id           bigserial primary key,
   commodity_id int not null references commodities(id) on delete cascade,
   market       text not null default 'kalimati',
-  source       text not null default 'official',
+  source_id    int not null references sources(id) on delete cascade,
   price_date   date not null,
   min_price    numeric(10, 2),
   max_price    numeric(10, 2),
@@ -57,7 +71,7 @@ create table if not exists daily_prices (
   scraped_at   timestamptz not null default now(),
 
   -- Idempotency constraint: one price row per commodity per market per source per day.
-  unique (commodity_id, market, source, price_date)
+  unique (commodity_id, market, source_id, price_date)
 );
 
 create index if not exists idx_daily_prices_date
@@ -70,15 +84,12 @@ create index if not exists idx_daily_prices_commodity
 -- ---------------------------------------------------------------------------
 -- alert_interest
 -- Phase 1 interest-capture only — no actual alert sending in v1.
--- unique(email): one row per email address regardless of locale.
--- The 'locale' column is kept as an analytics signal only.
 -- ---------------------------------------------------------------------------
 create table if not exists alert_interest (
   id          bigserial primary key,
   email       text not null,
   locale      text not null check (locale in ('en', 'ne')),
   source_page text not null,
-  -- 'dashboard' | 'vegetables' | 'fruits' | 'fish' | 'commodity/<slug>'
   created_at  timestamptz not null default now(),
 
   unique (email)
@@ -89,15 +100,19 @@ create table if not exists alert_interest (
 -- 2. ROW LEVEL SECURITY
 -- =============================================================================
 
--- Enable RLS on all tables.
 alter table commodities    enable row level security;
+alter table sources        enable row level security;
 alter table daily_prices   enable row level security;
 alter table alert_interest enable row level security;
 
 -- commodities: public read, no public write.
--- Writes happen exclusively via the service-role key in the scraper.
 create policy "Public can read commodities"
   on commodities for select
+  using (true);
+
+-- sources: public read, no public write.
+create policy "Public can read sources"
+  on sources for select
   using (true);
 
 -- daily_prices: public read, no public write.
@@ -105,13 +120,10 @@ create policy "Public can read daily_prices"
   on daily_prices for select
   using (true);
 
--- alert_interest: INSERT only via anon key — no SELECT (privacy by default).
--- The email list is never readable via the anon key.
+-- alert_interest: INSERT only via anon key — no SELECT.
 create policy "Anyone can submit interest"
   on alert_interest for insert
   with check (true);
--- Deliberately NO SELECT policy on alert_interest.
--- Only the service-role key (admin access) can read it.
 
 
 -- =============================================================================
@@ -121,7 +133,6 @@ create policy "Anyone can submit interest"
 -- ---------------------------------------------------------------------------
 -- daily_consensus_prices
 -- Aggregates multiple source observations per commodity per market per day.
--- Calculates consensus averages and confidence labels.
 -- ---------------------------------------------------------------------------
 create or replace view daily_consensus_prices as
 select
@@ -131,9 +142,9 @@ select
   round(avg(avg_price), 2) as avg_price,
   round(avg(min_price), 2) as min_price,
   round(avg(max_price), 2) as max_price,
-  count(distinct source) as source_count,
+  count(distinct source_id) as source_count,
   case
-    when count(distinct source) <= 1 then 'High (Single Source)'
+    when count(distinct source_id) <= 1 then 'High (Single Source)'
     when (max(avg_price) - min(avg_price)) / nullif(avg(avg_price), 0) < 0.03 then 'High (Consensus)'
     when (max(avg_price) - min(avg_price)) / nullif(avg(avg_price), 0) < 0.10 then 'Medium'
     else 'Low (Discrepancy)'
@@ -145,7 +156,6 @@ group by commodity_id, market, price_date;
 -- ---------------------------------------------------------------------------
 -- price_changes
 -- Adds LAG-based window columns for 1-day and 7-day previous avg prices.
--- Used as the base for latest_prices_with_changes.
 -- ---------------------------------------------------------------------------
 create or replace view price_changes as
 select
@@ -169,8 +179,6 @@ from daily_consensus_prices;
 -- ---------------------------------------------------------------------------
 -- latest_prices_with_changes
 -- Primary data source for the dashboard and category pages.
--- Returns ONE row per commodity: the most recent price + % change vs 1d/7d ago.
--- One query for ~98 commodities instead of per-row function calls.
 -- ---------------------------------------------------------------------------
 create or replace view latest_prices_with_changes as
 select
@@ -206,7 +214,6 @@ select
 from commodities c
 join price_changes pc on pc.commodity_id = c.id
 where pc.price_date = (
-    -- Subquery: find this commodity's most recent price date for this market
     select max(dp2.price_date)
     from daily_consensus_prices dp2
     where dp2.commodity_id = c.id
@@ -216,11 +223,8 @@ where pc.price_date = (
 
 -- =============================================================================
 -- 4. PHASE 2+ RESERVED TABLES
--- Schema reserved for forward-compatibility — not used by any v1 app code.
--- Present so Phase 2/4 begin without breaking migrations.
 -- =============================================================================
 
--- price_alerts: per-user alert subscriptions (Phase 2)
 create table if not exists price_alerts (
   id           bigserial primary key,
   user_id      uuid not null references auth.users(id) on delete cascade,
@@ -231,7 +235,6 @@ create table if not exists price_alerts (
   created_at   timestamptz not null default now()
 );
 
--- alert_log: record of sent alert notifications (Phase 2)
 create table if not exists alert_log (
   id             bigserial primary key,
   price_alert_id bigint not null references price_alerts(id) on delete cascade,
@@ -240,14 +243,12 @@ create table if not exists alert_log (
   status         text not null check (status in ('sent', 'failed'))
 );
 
--- organizations: cooperative / B2B accounts (Phase 4)
 create table if not exists organizations (
   id         bigserial primary key,
   name       text not null,
   created_at timestamptz not null default now()
 );
 
--- organization_members: links users to organizations (Phase 4)
 create table if not exists organization_members (
   id              bigserial primary key,
   organization_id bigint not null references organizations(id) on delete cascade,
@@ -257,7 +258,6 @@ create table if not exists organization_members (
   unique (organization_id, user_id)
 );
 
--- RLS on Phase 2+ tables — scoped to auth.uid() (no public access)
 alter table price_alerts          enable row level security;
 alter table alert_log             enable row level security;
 alter table organizations         enable row level security;
