@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getCommodityWithChange, getCommodityHistory } from "@/lib/queries/prices";
+import { getCommodityWithChange, getCommodityHistory, getObservationsForDate } from "@/lib/queries/prices";
 import { formatPrice, formatBSDate } from "@/lib/format";
 import PriceChangeBadge from "@/components/commodity/PriceChangeBadge";
 import PriceChart from "@/components/commodity/PriceChart";
@@ -42,6 +42,9 @@ export default async function CommodityDetailPage(props: PageProps) {
   }
 
   const { history } = await getCommodityHistory(slug, 30, market); // fetch last 30 days
+  const observations = commodity.price_date
+    ? await getObservationsForDate(commodity.commodity_id, market, commodity.price_date)
+    : [];
 
   // Get active category link/label
   const categoryLabel = commodity.category === "vegetable"
@@ -161,6 +164,55 @@ export default async function CommodityDetailPage(props: PageProps) {
         {/* Right Column: Sidebar */}
         <aside className="lg:col-span-4 flex flex-col gap-6">
           
+          {/* Validation & Consensus Status Card */}
+          <div className="bg-white border border-leaf-100 rounded-xl overflow-hidden shadow-sm">
+            <div className="p-5 flex flex-col gap-4">
+              <h3 className="font-bold text-sm text-soil-800 flex items-center gap-1.5">
+                <HelpCircle className="h-4 w-4 text-leaf-600" />
+                Consensus Verification
+              </h3>
+
+              <div className="flex flex-col gap-1.5">
+                <div className="flex justify-between text-xs">
+                  <span className="text-soil-800/50">Confidence:</span>
+                  <span className={`font-bold px-2 py-0.5 rounded text-[10px] uppercase border ${
+                    commodity.confidence?.toLowerCase().includes("high")
+                      ? "bg-leaf-50 text-leaf-700 border-leaf-100"
+                      : commodity.confidence?.toLowerCase().includes("medium")
+                      ? "bg-amber-50 text-amber-700 border-amber-100"
+                      : "bg-rose-50 text-rose-700 border-rose-100"
+                  }`}>
+                    {commodity.confidence || "Unknown"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-soil-800/50">Sources Verified:</span>
+                  <span className="font-bold text-soil-800">{commodity.source_count || 1}</span>
+                </div>
+              </div>
+
+              {observations.length > 0 && (
+                <div className="border-t border-leaf-100/60 pt-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/40 block mb-2">
+                    Source Reports for Today
+                  </span>
+                  <div className="flex flex-col gap-1.5">
+                    {observations.map((obs) => (
+                      <div key={obs.id} className="flex justify-between items-center text-xs p-2 bg-soil-50/50 rounded-lg border border-leaf-100/40">
+                        <span className="capitalize font-semibold text-soil-800/80">
+                          {obs.source === "official" ? "Official Board" : obs.source}
+                        </span>
+                        <span className="font-bold text-leaf-750">
+                          {formatPrice(obs.avg_price, commodity.unit, "en", { priceOnly: true })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Info details card */}
           <div className="bg-white border border-leaf-100 rounded-xl overflow-hidden shadow-sm">
             <div className="p-5">

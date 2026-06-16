@@ -191,6 +191,7 @@ export async function runScrape(opts?: {
   type UpsertRow = {
     commodity_id: number;
     market: string;
+    source: string;
     price_date: string;
     min_price: number | null;
     max_price: number | null;
@@ -219,6 +220,7 @@ export async function runScrape(opts?: {
     toUpsert.push({
       commodity_id: dbEntry.id,
       market: "kalimati",
+      source: "official",
       price_date: priceDate,
       min_price: row.minPrice,
       max_price: row.maxPrice,

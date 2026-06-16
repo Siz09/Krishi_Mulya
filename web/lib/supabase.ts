@@ -31,6 +31,7 @@ export type DailyPrice = {
   id: number;
   commodity_id: number;
   market: string;
+  source: string;
   price_date: string; // ISO date string "YYYY-MM-DD"
   min_price: number | null;
   max_price: number | null;
@@ -54,6 +55,8 @@ export type LatestPriceWithChange = {
   avg_price: number | null;
   min_price: number | null;
   max_price: number | null;
+  source_count: number;
+  confidence: string;
   change_1d_pct: number | null;
   change_7d_pct: number | null;
 };

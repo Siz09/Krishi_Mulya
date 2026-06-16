@@ -109,3 +109,28 @@ export async function getCommodityHistory(
     history: (history as DailyPrice[]) ?? [],
   };
 }
+
+/**
+ * Fetch all source observations for a specific commodity, market, and date.
+ * Used to display multi-source verification details.
+ */
+export async function getObservationsForDate(
+  commodityId: number,
+  market: string,
+  priceDate: string
+): Promise<DailyPrice[]> {
+  const { data, error } = await supabase
+    .from("daily_prices")
+    .select("*")
+    .eq("commodity_id", commodityId)
+    .eq("market", market)
+    .eq("price_date", priceDate)
+    .order("source", { ascending: true });
+
+  if (error) {
+    console.error(`[getObservationsForDate] commId=${commodityId} market=${market} date=${priceDate}`, error.message);
+    return [];
+  }
+
+  return (data as DailyPrice[]) ?? [];
+}

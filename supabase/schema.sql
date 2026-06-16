@@ -48,6 +48,7 @@ create table if not exists daily_prices (
   id           bigserial primary key,
   commodity_id int not null references commodities(id) on delete cascade,
   market       text not null default 'kalimati',
+  source       text not null default 'official',
   price_date   date not null,
   min_price    numeric(10, 2),
   max_price    numeric(10, 2),
@@ -55,9 +56,8 @@ create table if not exists daily_prices (
   unit         text not null default 'kg',
   scraped_at   timestamptz not null default now(),
 
-  -- Idempotency constraint: one price row per commodity per market per day.
-  -- Scraper uses: .upsert(rows, { onConflict: 'commodity_id,market,price_date' })
-  unique (commodity_id, market, price_date)
+  -- Idempotency constraint: one price row per commodity per market per source per day.
+  unique (commodity_id, market, source, price_date)
 );
 
 create index if not exists idx_daily_prices_date
@@ -119,6 +119,30 @@ create policy "Anyone can submit interest"
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
+-- daily_consensus_prices
+-- Aggregates multiple source observations per commodity per market per day.
+-- Calculates consensus averages and confidence labels.
+-- ---------------------------------------------------------------------------
+create or replace view daily_consensus_prices as
+select
+  commodity_id,
+  market,
+  price_date,
+  round(avg(avg_price), 2) as avg_price,
+  round(avg(min_price), 2) as min_price,
+  round(avg(max_price), 2) as max_price,
+  count(distinct source) as source_count,
+  case
+    when count(distinct source) <= 1 then 'High (Single Source)'
+    when (max(avg_price) - min(avg_price)) / nullif(avg(avg_price), 0) < 0.03 then 'High (Consensus)'
+    when (max(avg_price) - min(avg_price)) / nullif(avg(avg_price), 0) < 0.10 then 'Medium'
+    else 'Low (Discrepancy)'
+  end as confidence
+from daily_prices
+group by commodity_id, market, price_date;
+
+
+-- ---------------------------------------------------------------------------
 -- price_changes
 -- Adds LAG-based window columns for 1-day and 7-day previous avg prices.
 -- Used as the base for latest_prices_with_changes.
@@ -131,13 +155,15 @@ select
   avg_price,
   min_price,
   max_price,
+  source_count,
+  confidence,
   lag(avg_price, 1) over (
     partition by commodity_id, market order by price_date
   ) as avg_price_1d_ago,
   lag(avg_price, 7) over (
     partition by commodity_id, market order by price_date
   ) as avg_price_7d_ago
-from daily_prices;
+from daily_consensus_prices;
 
 
 -- ---------------------------------------------------------------------------
@@ -159,6 +185,8 @@ select
   pc.avg_price,
   pc.min_price,
   pc.max_price,
+  pc.source_count,
+  pc.confidence,
   case
     when pc.avg_price_1d_ago is not null and pc.avg_price_1d_ago != 0
     then round(
@@ -180,7 +208,7 @@ join price_changes pc on pc.commodity_id = c.id
 where pc.price_date = (
     -- Subquery: find this commodity's most recent price date for this market
     select max(dp2.price_date)
-    from daily_prices dp2
+    from daily_consensus_prices dp2
     where dp2.commodity_id = c.id
       and dp2.market = pc.market
   );
