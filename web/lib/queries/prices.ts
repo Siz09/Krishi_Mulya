@@ -166,3 +166,24 @@ export async function getObservationsForDate(
 
   return (data as any[]) ?? [];
 }
+
+/**
+ * Fetch latest prices for a commodity across all markets where it is available.
+ * Used for cross-location comparison.
+ */
+export async function getPricesAcrossMarkets(
+  slug: string
+): Promise<LatestPriceWithChange[]> {
+  const { data, error } = await supabase
+    .from("latest_prices_with_changes")
+    .select("*")
+    .eq("slug", slug)
+    .order("avg_price", { ascending: true });
+
+  if (error) {
+    console.error(`[getPricesAcrossMarkets] slug=${slug}`, error.message);
+    return [];
+  }
+
+  return (data as LatestPriceWithChange[]) ?? [];
+}

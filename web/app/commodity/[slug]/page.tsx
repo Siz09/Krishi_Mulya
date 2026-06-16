@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getCommodityWithChange, getCommodityHistory, getObservationsForDate } from "@/lib/queries/prices";
+import { getCommodityWithChange, getCommodityHistory, getObservationsForDate, getPricesAcrossMarkets } from "@/lib/queries/prices";
 import { formatPrice, formatBSDate } from "@/lib/format";
 import PriceChangeBadge from "@/components/commodity/PriceChangeBadge";
 import PriceChart from "@/components/commodity/PriceChart";
 import AlertSignupForm from "@/components/shared/AlertSignupForm";
-import { ChevronRight, Home, HelpCircle } from "lucide-react";
+import { ChevronRight, Home, HelpCircle, MapPin } from "lucide-react";
 
 export const revalidate = 1800; // revalidate every 30 minutes
 
@@ -30,6 +30,21 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   };
 }
 
+const MARKET_LABELS: Record<string, string> = {
+  kalimati: "Kathmandu (Kalimati)",
+  birtamod: "Birtamod",
+  dharan: "Dharan",
+  dhalkebar: "Dhalkebar",
+  kamalamai: "Kamalamai",
+  kawasoti: "Kawasoti",
+  pokhara: "Pokhara",
+  butwal: "Butwal",
+  kohalpur: "Kohalpur",
+  birendranagar: "Birendranagar",
+  attariya: "Attariya",
+  lalbandi: "Lalbandi",
+};
+
 export default async function CommodityDetailPage(props: PageProps) {
   const params = await props.params;
   const resolvedSearchParams = await props.searchParams;
@@ -48,6 +63,7 @@ export default async function CommodityDetailPage(props: PageProps) {
   const observations = commodity.price_date
     ? await getObservationsForDate(commodity.commodity_id, activeMarket, commodity.price_date)
     : [];
+  const allLocationsPrices = await getPricesAcrossMarkets(slug);
 
   // Get active category link/label
   const categoryLabels: Record<string, string> = {
@@ -229,6 +245,53 @@ export default async function CommodityDetailPage(props: PageProps) {
               )}
             </div>
           </div>
+
+          {/* Compare across Locations Card */}
+          {allLocationsPrices.length > 1 && (
+            <div className="bg-white border border-leaf-100 rounded-xl overflow-hidden shadow-sm">
+              <div className="p-5 flex flex-col gap-4">
+                <h3 className="font-bold text-sm text-soil-800 flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-leaf-600" />
+                  Compare Across Locations
+                </h3>
+                <div className="flex flex-col gap-2">
+                  {allLocationsPrices.map((p) => {
+                    const isActive = p.market === activeMarket;
+                    const label = MARKET_LABELS[p.market] || p.market;
+                    return (
+                      <div
+                        key={p.market}
+                        className={`flex justify-between items-center text-xs p-2.5 rounded-lg border transition-all ${
+                          isActive
+                            ? "bg-leaf-50/50 border-leaf-200 text-leaf-800 font-semibold"
+                            : "bg-soil-50/30 border-leaf-100/40 hover:bg-leaf-50/30 hover:border-leaf-200"
+                        }`}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          {isActive ? (
+                            <span className="capitalize">{label} (Current)</span>
+                          ) : (
+                            <Link
+                              href={`/commodity/${slug}?market=${p.market}`}
+                              className="capitalize hover:underline text-soil-800 hover:text-leaf-700"
+                            >
+                              {label}
+                            </Link>
+                          )}
+                        </span>
+                        <span className="font-bold text-soil-900">
+                          {formatPrice(p.avg_price, p.unit, "en", { priceOnly: true })}
+                          <span className="text-[10px] font-normal text-soil-800/50 ml-0.5">
+                            /{p.unit}
+                          </span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Info details card */}
           <div className="bg-white border border-leaf-100 rounded-xl overflow-hidden shadow-sm">
