@@ -12,29 +12,36 @@ export const revalidate = 1800; // revalidate every 30 minutes
 
 interface PageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ market?: string }>;
 }
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const params = await props.params;
-  const commodity = await getCommodityWithChange(params.slug);
+  const resolvedSearchParams = await props.searchParams;
+  const market = resolvedSearchParams.market || "kalimati";
+  const commodity = await getCommodityWithChange(params.slug, market);
   if (!commodity) return {};
   
+  const marketName = market.charAt(0).toUpperCase() + market.slice(1);
   return {
-    title: `${commodity.name_en} (${commodity.name_ne}) Wholesale Price Today in Nepal`,
-    description: `Today's wholesale price for ${commodity.name_en} (${commodity.name_ne}) in Kalimati Market. Latest average rate, min, max, and historical chart.`,
+    title: `${commodity.name_en} (${commodity.name_ne}) Wholesale Price Today in ${marketName} Market`,
+    description: `Today's wholesale price for ${commodity.name_en} (${commodity.name_ne}) in ${marketName} Market. Latest average rate, min, max, and historical chart.`,
   };
 }
 
 export default async function CommodityDetailPage(props: PageProps) {
   const params = await props.params;
+  const resolvedSearchParams = await props.searchParams;
   const slug = params.slug;
+  const market = resolvedSearchParams.market || "kalimati";
+  const marketName = market.charAt(0).toUpperCase() + market.slice(1);
 
-  const commodity = await getCommodityWithChange(slug);
+  const commodity = await getCommodityWithChange(slug, market);
   if (!commodity) {
     notFound();
   }
 
-  const { history } = await getCommodityHistory(slug, 30); // fetch last 30 days
+  const { history } = await getCommodityHistory(slug, 30, market); // fetch last 30 days
 
   // Get active category link/label
   const categoryLabel = commodity.category === "vegetable"
@@ -162,7 +169,7 @@ export default async function CommodityDetailPage(props: PageProps) {
                 Commodity Information
               </h3>
               <p className="text-xs text-soil-800/70 leading-relaxed">
-                Wholesale prices represent the average daily transacted rates at the Kalimati Fruits & Vegetable wholesale market in Kathmandu, Nepal. Prices fluctuate based on seasonal demand, harvest conditions, transportation, and regional imports.
+                Wholesale prices represent the average daily transacted rates at the {marketName} wholesale market. Prices fluctuate based on seasonal demand, harvest conditions, transportation, and regional imports.
               </p>
               <div className="flex flex-wrap gap-2 mt-4">
                 <span className="inline-block bg-soil-50 text-soil-800/70 border border-leaf-100/50 px-2 py-1 rounded text-[10px] font-semibold">

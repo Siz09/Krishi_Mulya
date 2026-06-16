@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { getLatestPrices } from "@/lib/queries/prices";
 import { formatBSDate } from "@/lib/format";
 import SearchBar from "@/components/shared/SearchBar";
+import MarketSelector from "@/components/shared/MarketSelector";
 import PriceTable from "@/components/commodity/PriceTable";
 import PriceCardList from "@/components/commodity/PriceCardList";
 import AlertSignupForm from "@/components/shared/AlertSignupForm";
@@ -12,7 +13,7 @@ interface CommodityListingPageProps {
   category?: "vegetable" | "fruit" | "fish";
   title: string;
   sourcePage: string;
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; market?: string }>;
 }
 
 export default async function CommodityListingPage({
@@ -23,9 +24,11 @@ export default async function CommodityListingPage({
 }: CommodityListingPageProps) {
   const resolvedParams = await searchParams;
   const search = resolvedParams.q || "";
+  const market = resolvedParams.market || "kalimati";
+  const marketName = market === "kalimati" ? "Kalimati" : market.charAt(0).toUpperCase() + market.slice(1);
 
   // Fetch filtered latest prices
-  const prices = await getLatestPrices({ category, search });
+  const prices = await getLatestPrices({ category, search, market });
 
   // Determine if data is stale compared to today (UTC date)
   let latestDateStr = "";
@@ -39,10 +42,13 @@ export default async function CommodityListingPage({
   const todayStr = new Date().toISOString().slice(0, 10);
   const isStale = latestDateStr && latestDateStr < todayStr;
 
-  // Build safe URL search query
+  // Build safe URL search query preserving both search term and market
   const getCategoryHref = (path: string) => {
-    if (!search) return path;
-    return `${path}?q=${encodeURIComponent(search)}`;
+    const params = new URLSearchParams();
+    if (search) params.set("q", search);
+    if (market && market !== "kalimati") params.set("market", market);
+    const queryString = params.toString();
+    return queryString ? `${path}?${queryString}` : path;
   };
 
   const categories = [
@@ -63,7 +69,7 @@ export default async function CommodityListingPage({
 
         {prices.length === 0 && !search && (
           <div className="bg-soil-50 border border-leaf-100 rounded-xl p-6 text-center text-soil-800/60 shadow-sm">
-            Price data will appear here once the first daily update runs.
+            Price data will appear here once the first daily update runs for the {marketName} market.
           </div>
         )}
 
@@ -71,19 +77,24 @@ export default async function CommodityListingPage({
           <div className="bg-soil-50 border border-leaf-100 rounded-xl p-4 flex items-start gap-3 shadow-sm">
             <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
             <p className="text-sm text-soil-800 font-medium">
-              Notice: Showing prices for {formatBSDate(latestDateStr, "en")} ({latestDateStr}) as today's market prices have not yet been published by Kalimati.
+              Notice: Showing prices for {formatBSDate(latestDateStr, "en")} ({latestDateStr}) as today's market prices have not yet been published by {marketName}.
             </p>
           </div>
         )}
       </header>
 
-      {/* Search and Category filters */}
-      <section className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <Suspense fallback={<div className="h-10 w-full md:w-96 bg-leaf-50/20 rounded-lg animate-pulse" />}>
-          <SearchBar />
-        </Suspense>
+      {/* Search, Market Selector and Category filters */}
+      <section className="flex flex-col lg:flex-row justify-between items-center gap-4 bg-white/50 p-4 rounded-2xl border border-leaf-100/40 backdrop-blur-sm shadow-sm">
+        <div className="flex flex-col md:flex-row items-center gap-3 w-full lg:w-auto">
+          <Suspense fallback={<div className="h-10 w-full md:w-96 bg-leaf-50/20 rounded-lg animate-pulse" />}>
+            <SearchBar />
+          </Suspense>
+          <Suspense fallback={<div className="h-10 w-full md:w-80 bg-leaf-50/20 rounded-lg animate-pulse" />}>
+            <MarketSelector />
+          </Suspense>
+        </div>
 
-        <div className="flex overflow-x-auto w-full md:w-auto gap-2 pb-2 md:pb-0 scrollbar-none">
+        <div className="flex overflow-x-auto w-full lg:w-auto gap-2 pb-2 lg:pb-0 scrollbar-none justify-start lg:justify-end">
           {categories.map((cat) => (
             <Link
               key={cat.href}

@@ -177,13 +177,12 @@ select
   end as change_7d_pct
 from commodities c
 join price_changes pc on pc.commodity_id = c.id
-where pc.market = 'kalimati'
-  and pc.price_date = (
-    -- Subquery: find this commodity's most recent price date
+where pc.price_date = (
+    -- Subquery: find this commodity's most recent price date for this market
     select max(dp2.price_date)
     from daily_prices dp2
     where dp2.commodity_id = c.id
-      and dp2.market = 'kalimati'
+      and dp2.market = pc.market
   );
 
 

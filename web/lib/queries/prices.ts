@@ -11,10 +11,13 @@ import type { Commodity, DailyPrice, LatestPriceWithChange } from "../supabase";
 export async function getLatestPrices(opts?: {
   category?: "vegetable" | "fruit" | "fish";
   search?: string;
+  market?: string;
 }): Promise<LatestPriceWithChange[]> {
+  const market = opts?.market || "kalimati";
   let query = supabase
     .from("latest_prices_with_changes")
     .select("*")
+    .eq("market", market)
     .order("name_en", { ascending: true });
 
   if (opts?.category) {
@@ -41,16 +44,18 @@ export async function getLatestPrices(opts?: {
  * Returns null for an invalid slug — callers use notFound() to render 404.
  */
 export async function getCommodityWithChange(
-  slug: string
+  slug: string,
+  market: string = "kalimati"
 ): Promise<LatestPriceWithChange | null> {
   const { data, error } = await supabase
     .from("latest_prices_with_changes")
     .select("*")
     .eq("slug", slug)
+    .eq("market", market)
     .maybeSingle();
 
   if (error) {
-    console.error(`[getCommodityWithChange] slug=${slug}`, error.message);
+    console.error(`[getCommodityWithChange] slug=${slug} market=${market}`, error.message);
     return null;
   }
 
@@ -66,7 +71,8 @@ export async function getCommodityWithChange(
  */
 export async function getCommodityHistory(
   slug: string,
-  days: number = 90
+  days: number = 90,
+  market: string = "kalimati"
 ): Promise<{ commodity: Commodity | null; history: DailyPrice[] }> {
   // 1. Commodity metadata
   const { data: commodity, error: commErr } = await supabase
@@ -89,11 +95,12 @@ export async function getCommodityHistory(
     .from("daily_prices")
     .select("*")
     .eq("commodity_id", commodity.id)
+    .eq("market", market)
     .gte("price_date", thresholdStr)
     .order("price_date", { ascending: true });
 
   if (histErr) {
-    console.error(`[getCommodityHistory] history id=${commodity.id}`, histErr.message);
+    console.error(`[getCommodityHistory] history id=${commodity.id} market=${market}`, histErr.message);
     return { commodity: commodity as Commodity, history: [] };
   }
 
