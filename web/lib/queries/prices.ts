@@ -9,7 +9,18 @@ import type { Commodity, DailyPrice, LatestPriceWithChange } from "../supabase";
  * and a Nepali-locale user typing "tomato" both get correct results.
  */
 export async function getLatestPrices(opts?: {
-  category?: "vegetable" | "fruit" | "fish";
+  category?:
+    | "vegetable"
+    | "fruit"
+    | "fish"
+    | "meat"
+    | "dairy"
+    | "spice"
+    | "leafy_green"
+    | "mushroom"
+    | "root_vegetable"
+    | "legume"
+    | "other";
   search?: string;
   market?: string;
 }): Promise<LatestPriceWithChange[]> {

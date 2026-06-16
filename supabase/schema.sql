@@ -26,8 +26,14 @@ create table if not exists commodities (
   name_en    text not null,
   name_ne    text not null,
   unit       text not null default 'kg',      -- 'kg' | 'dozen' | 'piece'
-  category   text not null default 'vegetable' -- 'vegetable' | 'fruit' | 'fish'
-               check (category in ('vegetable', 'fruit', 'fish')),
+  category   text not null default 'vegetable'
+               -- all AMPIS + Kalimati categories
+               check (category in (
+                 'vegetable', 'fruit', 'fish',
+                 'meat', 'dairy', 'spice',
+                 'leafy_green', 'mushroom',
+                 'root_vegetable', 'legume', 'other'
+               )),
   active     boolean not null default true,
   created_at timestamptz not null default now()
 );

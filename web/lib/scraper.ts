@@ -255,32 +255,23 @@ export async function runScrape(opts?: {
     return { ok: false, date: priceDate, matchedCount: 0, unmatched: [], error };
   }
 
-  // ── Step 1: ensure all commodities exist in the DB ─────────────────────────
-  const { data: existingCommodities, error: fetchErr } = await supabase
-    .from("commodities")
-    .select("id, slug");
-
-  if (fetchErr) {
-    throw new Error(`Failed to fetch commodities from DB: ${fetchErr.message}`);
+  // ── Step 1: sync all commodities from the map to the DB ─────────────────────
+  console.log(`[scraper] Syncing ${COMMODITIES.length} commodities from map to DB...`);
+  const { error: insertErr } = await supabase.from("commodities").upsert(
+    COMMODITIES.map((c) => ({
+      slug: c.slug,
+      name_en: c.name_en,
+      name_ne: c.name_ne,
+      unit: c.unit,
+      category: c.category,
+      active: true,
+    })),
+    { onConflict: "slug" }
+  );
+  if (insertErr) {
+    throw new Error(`Failed to sync commodities: ${insertErr.message}`);
   }
-
-  if (!existingCommodities || existingCommodities.length === 0) {
-    console.log("[scraper] Commodities table is empty — seeding from commodity map...");
-    const { error: insertErr } = await supabase.from("commodities").insert(
-      COMMODITIES.map((c) => ({
-        slug: c.slug,
-        name_en: c.name_en,
-        name_ne: c.name_ne,
-        unit: c.unit,
-        category: c.category,
-        active: true,
-      }))
-    );
-    if (insertErr) {
-      throw new Error(`Failed to seed commodities: ${insertErr.message}`);
-    }
-    console.log("[scraper] Commodities seeded successfully.");
-  }
+  console.log("[scraper] Commodities synced successfully.");
 
   // Load source mapping slug -> id from database
   const { data: sourceRows, error: sourceErr } = await supabase

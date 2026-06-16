@@ -10,7 +10,18 @@ import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 
 interface CommodityListingPageProps {
-  category?: "vegetable" | "fruit" | "fish";
+  category?:
+    | "vegetable"
+    | "fruit"
+    | "fish"
+    | "meat"
+    | "dairy"
+    | "spice"
+    | "leafy_green"
+    | "mushroom"
+    | "root_vegetable"
+    | "legume"
+    | "other";
   title: string;
   sourcePage: string;
   searchParams: Promise<{ q?: string; market?: string }>;
@@ -55,7 +66,15 @@ export default async function CommodityListingPage({
     { label: "All", href: "/", active: !category },
     { label: "Vegetables", href: "/vegetables", active: category === "vegetable" },
     { label: "Fruits", href: "/fruits", active: category === "fruit" },
+    { label: "Spices", href: "/spices", active: category === "spice" },
+    { label: "Leafy Greens", href: "/leafy-greens", active: category === "leafy_green" },
+    { label: "Mushrooms", href: "/mushrooms", active: category === "mushroom" },
+    { label: "Root Vegetables", href: "/root-vegetables", active: category === "root_vegetable" },
+    { label: "Legumes", href: "/legumes", active: category === "legume" },
     { label: "Fish", href: "/fish", active: category === "fish" },
+    { label: "Meat", href: "/meat", active: category === "meat" },
+    { label: "Dairy", href: "/dairy", active: category === "dairy" },
+    { label: "Other Grains", href: "/other-grains", active: category === "other" },
   ];
 
   return (

@@ -47,11 +47,20 @@ export default async function CommodityDetailPage(props: PageProps) {
     : [];
 
   // Get active category link/label
-  const categoryLabel = commodity.category === "vegetable"
-    ? "Vegetables"
-    : commodity.category === "fruit"
-    ? "Fruits"
-    : "Fish";
+  const categoryLabels: Record<string, string> = {
+    vegetable: "Vegetables",
+    fruit: "Fruits",
+    fish: "Fish",
+    meat: "Meat",
+    dairy: "Dairy",
+    spice: "Spices",
+    leafy_green: "Leafy Greens",
+    mushroom: "Mushrooms",
+    root_vegetable: "Root Vegetables",
+    legume: "Legumes",
+    other: "Other Grains",
+  };
+  const categoryLabel = categoryLabels[commodity.category] || "Other";
   const categoryLink = `/${commodity.category}s`;
 
   return (
