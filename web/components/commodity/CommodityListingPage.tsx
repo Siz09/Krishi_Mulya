@@ -81,7 +81,7 @@ export default async function CommodityListingPage({
       </header>
 
       {/* Search, Market Selector and Category filters */}
-      <section className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/50 p-4 rounded-2xl border border-leaf-100/40 backdrop-blur-sm shadow-sm w-full">
+      <section className="relative z-30 flex flex-col md:flex-row justify-between items-center gap-4 bg-white/50 p-4 rounded-2xl border border-leaf-100/40 backdrop-blur-sm shadow-sm w-full">
         <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
           <Suspense fallback={<div className="h-10 w-full md:w-96 bg-leaf-50/20 rounded-lg animate-pulse" />}>
             <SearchBar />
