@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
     // a parent folder that contains other Node projects.
     root: path.resolve(__dirname, ".."),
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

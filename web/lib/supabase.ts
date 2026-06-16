@@ -25,6 +25,7 @@ export type Commodity = {
   category: Category;
   active: boolean;
   created_at: string;
+  image_url?: string | null;
 };
 
 export type Source = {
@@ -70,6 +71,7 @@ export type LatestPriceWithChange = {
   confidence: string;
   change_1d_pct: number | null;
   change_7d_pct: number | null;
+  image_url?: string | null;
 };
 
 // ─── Alert interest type ──────────────────────────────────────────────────────

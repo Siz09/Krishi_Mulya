@@ -1,6 +1,8 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { LatestPriceWithChange } from "@/lib/supabase";
 import { formatPrice } from "@/lib/format";
+import { getProductImageUrl } from "@/lib/commodityDetails";
 import PriceChangeBadge from "./PriceChangeBadge";
 
 interface PriceTableProps {
@@ -60,16 +62,30 @@ export default function PriceTable({
                   key={`${price.commodity_id}-${price.market}`}
                   className={`relative ${bgClass} hover:bg-leaf-50/60 transition-colors`}
                 >
-                  <td className="p-4">
-                    {/* The after:absolute pseudo-element stretches the link to cover the entire relative row */}
-                    <Link
-                      href={`/commodity/${price.slug}?market=${price.market}`}
-                      className="font-semibold text-leaf-700 hover:underline block after:absolute after:inset-0 after:z-10"
-                    >
-                      {price.name_en}
-                    </Link>
-                    <div className="text-xs text-soil-800/50 font-devanagari font-medium mt-0.5 relative z-20 pointer-events-none">
-                      {price.name_ne}
+                  <td className="p-4 relative">
+                    <div className="flex items-center gap-3">
+                      {/* Product Thumbnail */}
+                      <div className="relative h-10 w-10 rounded-lg overflow-hidden border border-leaf-100 bg-leaf-50/50 shrink-0 shadow-sm">
+                        <Image
+                          src={getProductImageUrl(price.slug, price.category)}
+                          alt={price.name_en}
+                          fill
+                          className="object-cover"
+                          sizes="40px"
+                        />
+                      </div>
+                      <div>
+                        {/* The after:absolute pseudo-element stretches the link to cover the entire relative row */}
+                        <Link
+                          href={`/commodity/${price.slug}?market=${price.market}`}
+                          className="font-semibold text-leaf-700 hover:underline block after:absolute after:inset-0 after:z-10"
+                        >
+                          {price.name_en}
+                        </Link>
+                        <div className="text-xs text-soil-800/50 font-devanagari font-medium mt-0.5 relative z-20 pointer-events-none">
+                          {price.name_ne}
+                        </div>
+                      </div>
                     </div>
                   </td>
                   {showMarket && (

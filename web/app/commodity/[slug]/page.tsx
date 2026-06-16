@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { getCommodityWithChange, getCommodityHistory, getObservationsForDate, getPricesAcrossMarkets } from "@/lib/queries/prices";
 import { formatPrice, formatBSDate } from "@/lib/format";
+import { getProductImageUrl } from "@/lib/commodityDetails";
 import PriceChangeBadge from "@/components/commodity/PriceChangeBadge";
 import PriceChart from "@/components/commodity/PriceChart";
 import AlertSignupForm from "@/components/shared/AlertSignupForm";
@@ -192,6 +194,33 @@ export default async function CommodityDetailPage(props: PageProps) {
         {/* Right Column: Sidebar */}
         <aside className="lg:col-span-4 flex flex-col gap-6">
           
+          {/* Featured Commodity Visual Card */}
+          <div className="bg-white border border-leaf-100 rounded-xl overflow-hidden shadow-sm hover:shadow-interactive transition-all group flex flex-col">
+            <div className="relative w-full h-48 bg-leaf-50 overflow-hidden">
+              <Image
+                src={getProductImageUrl(commodity.slug, commodity.category)}
+                alt={commodity.name_en}
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-500"
+                sizes="(max-w-768px) 100vw, 320px"
+                priority
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-soil-800/90 via-soil-800/20 to-transparent" />
+              
+              <div className="absolute bottom-4 left-4 right-4 animate-fade-in">
+                <span className="inline-block px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider bg-leaf-600/90 text-white rounded">
+                  {commodity.category}
+                </span>
+                <h3 className="text-white text-lg font-black leading-tight mt-1.5">
+                  {commodity.name_en}
+                </h3>
+                <span className="text-leaf-100/90 text-sm font-semibold font-devanagari block mt-0.5">
+                  {commodity.name_ne}
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Validation & Consensus Status Card */}
           <div className="bg-white border border-leaf-100 rounded-xl overflow-hidden shadow-sm">
             <div className="p-5 flex flex-col gap-4">
