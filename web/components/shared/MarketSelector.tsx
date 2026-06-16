@@ -5,6 +5,7 @@ import { useTransition, useState, useRef, useEffect } from "react";
 import { MapPin, ChevronDown, Check } from "lucide-react";
 
 const MARKETS = [
+  { id: "all", label: "All Locations" },
   { id: "kalimati", label: "Kathmandu (Kalimati)" },
   { id: "birtamod", label: "Birtamod" },
   { id: "dharan", label: "Dharan" },
@@ -48,6 +49,7 @@ export default function MarketSelector() {
     } else {
       params.set("market", marketId);
     }
+    params.delete("page");
 
     startTransition(() => {
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });

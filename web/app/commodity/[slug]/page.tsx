@@ -22,7 +22,8 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const commodity = await getCommodityWithChange(params.slug, market);
   if (!commodity) return {};
   
-  const marketName = market.charAt(0).toUpperCase() + market.slice(1);
+  const activeMarket = commodity.market;
+  const marketName = activeMarket === "kalimati" ? "Kalimati" : activeMarket.charAt(0).toUpperCase() + activeMarket.slice(1);
   return {
     title: `${commodity.name_en} (${commodity.name_ne}) Wholesale Price Today in ${marketName} Market`,
     description: `Today's wholesale price for ${commodity.name_en} (${commodity.name_ne}) in ${marketName} Market. Latest average rate, min, max, and historical chart.`,
@@ -34,16 +35,18 @@ export default async function CommodityDetailPage(props: PageProps) {
   const resolvedSearchParams = await props.searchParams;
   const slug = params.slug;
   const market = resolvedSearchParams.market || "kalimati";
-  const marketName = market.charAt(0).toUpperCase() + market.slice(1);
 
   const commodity = await getCommodityWithChange(slug, market);
   if (!commodity) {
     notFound();
   }
 
-  const { history } = await getCommodityHistory(slug, 30, market); // fetch last 30 days
+  const activeMarket = commodity.market;
+  const marketName = activeMarket === "kalimati" ? "Kalimati" : activeMarket.charAt(0).toUpperCase() + activeMarket.slice(1);
+
+  const { history } = await getCommodityHistory(slug, 30, activeMarket); // fetch last 30 days
   const observations = commodity.price_date
-    ? await getObservationsForDate(commodity.commodity_id, market, commodity.price_date)
+    ? await getObservationsForDate(commodity.commodity_id, activeMarket, commodity.price_date)
     : [];
 
   // Get active category link/label

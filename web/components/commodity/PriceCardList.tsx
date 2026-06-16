@@ -7,12 +7,29 @@ interface PriceCardListProps {
   prices: LatestPriceWithChange[];
   locale?: "en" | "ne";
   className?: string;
+  showMarket?: boolean;
 }
+
+const MARKET_LABELS: Record<string, string> = {
+  kalimati: "Kathmandu (Kalimati)",
+  birtamod: "Birtamod",
+  dharan: "Dharan",
+  dhalkebar: "Dhalkebar",
+  kamalamai: "Kamalamai",
+  kawasoti: "Kawasoti",
+  pokhara: "Pokhara",
+  butwal: "Butwal",
+  kohalpur: "Kohalpur",
+  birendranagar: "Birendranagar",
+  attariya: "Attariya",
+  lalbandi: "Lalbandi",
+};
 
 export default function PriceCardList({
   prices,
   locale = "en",
   className = "",
+  showMarket = false,
 }: PriceCardListProps) {
   if (prices.length === 0) {
     return (
@@ -27,8 +44,8 @@ export default function PriceCardList({
       {prices.map((price) => {
         return (
           <Link
-            key={price.commodity_id}
-            href={`/commodity/${price.slug}`}
+            key={`${price.commodity_id}-${price.market}`}
+            href={`/commodity/${price.slug}?market=${price.market}`}
             className="block bg-white border border-leaf-100 rounded-xl p-4 shadow-sm hover:shadow-interactive transition-all group"
           >
             <div className="flex justify-between items-start mb-2">
@@ -40,7 +57,7 @@ export default function PriceCardList({
                   {price.name_ne}
                 </span>
                 <span className="inline-block mt-1 text-[10px] uppercase font-bold text-soil-800/40 tracking-wider">
-                  {price.category}
+                  {price.category} {showMarket && `• ${MARKET_LABELS[price.market] || price.market}`}
                 </span>
               </div>
               <div className="text-right">

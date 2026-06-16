@@ -43,6 +43,7 @@ export default function CategorySelector({ currentCategory = "" }: CategorySelec
 
   const getHref = (path: string) => {
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
     const queryString = params.toString();
     return queryString ? `${path}?${queryString}` : path;
   };

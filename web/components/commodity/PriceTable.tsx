@@ -7,12 +7,29 @@ interface PriceTableProps {
   prices: LatestPriceWithChange[];
   locale?: "en" | "ne";
   className?: string;
+  showMarket?: boolean;
 }
+
+const MARKET_LABELS: Record<string, string> = {
+  kalimati: "Kathmandu (Kalimati)",
+  birtamod: "Birtamod",
+  dharan: "Dharan",
+  dhalkebar: "Dhalkebar",
+  kamalamai: "Kamalamai",
+  kawasoti: "Kawasoti",
+  pokhara: "Pokhara",
+  butwal: "Butwal",
+  kohalpur: "Kohalpur",
+  birendranagar: "Birendranagar",
+  attariya: "Attariya",
+  lalbandi: "Lalbandi",
+};
 
 export default function PriceTable({
   prices,
   locale = "en",
   className = "",
+  showMarket = false,
 }: PriceTableProps) {
   return (
     <div className={`overflow-hidden rounded-xl border border-leaf-100 bg-white shadow-sm ${className}`}>
@@ -20,6 +37,7 @@ export default function PriceTable({
         <thead>
           <tr className="bg-leaf-600 text-white font-semibold text-xs uppercase tracking-wider">
             <th className="p-4">Commodity</th>
+            {showMarket && <th className="p-4">Location</th>}
             <th className="p-4">Category</th>
             <th className="p-4 text-right">Avg Price</th>
             <th className="p-4 text-right">Min Price</th>
@@ -30,7 +48,7 @@ export default function PriceTable({
         <tbody className="divide-y divide-leaf-100 text-sm">
           {prices.length === 0 ? (
             <tr>
-              <td colSpan={6} className="p-8 text-center text-soil-800/50">
+              <td colSpan={showMarket ? 7 : 6} className="p-8 text-center text-soil-800/50">
                 No commodities found matching your search.
               </td>
             </tr>
@@ -39,13 +57,13 @@ export default function PriceTable({
               const bgClass = idx % 2 === 1 ? "bg-soil-50/40" : "bg-white";
               return (
                 <tr
-                  key={price.commodity_id}
+                  key={`${price.commodity_id}-${price.market}`}
                   className={`relative ${bgClass} hover:bg-leaf-50/60 transition-colors`}
                 >
                   <td className="p-4">
                     {/* The after:absolute pseudo-element stretches the link to cover the entire relative row */}
                     <Link
-                      href={`/commodity/${price.slug}`}
+                      href={`/commodity/${price.slug}?market=${price.market}`}
                       className="font-semibold text-leaf-700 hover:underline block after:absolute after:inset-0 after:z-10"
                     >
                       {price.name_en}
@@ -54,6 +72,11 @@ export default function PriceTable({
                       {price.name_ne}
                     </div>
                   </td>
+                  {showMarket && (
+                    <td className="p-4 text-soil-800/80 font-medium relative z-20 pointer-events-none">
+                      {MARKET_LABELS[price.market] || price.market}
+                    </td>
+                  )}
                   <td className="p-4 text-soil-800/80 capitalize relative z-20 pointer-events-none">
                     {price.category}
                   </td>

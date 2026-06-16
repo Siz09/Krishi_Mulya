@@ -28,8 +28,11 @@ export async function getLatestPrices(opts?: {
   let query = supabase
     .from("latest_prices_with_changes")
     .select("*")
-    .eq("market", market)
     .order("name_en", { ascending: true });
+
+  if (market !== "all") {
+    query = query.eq("market", market);
+  }
 
   if (opts?.category) {
     query = query.eq("category", opts.category);
@@ -58,7 +61,7 @@ export async function getCommodityWithChange(
   slug: string,
   market: string = "kalimati"
 ): Promise<LatestPriceWithChange | null> {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("latest_prices_with_changes")
     .select("*")
     .eq("slug", slug)
@@ -68,6 +71,25 @@ export async function getCommodityWithChange(
   if (error) {
     console.error(`[getCommodityWithChange] slug=${slug} market=${market}`, error.message);
     return null;
+  }
+
+  if (!data) {
+    // Fallback: try to find the commodity in ANY market where it has data
+    const { data: fallback, error: fallbackErr } = await supabase
+      .from("latest_prices_with_changes")
+      .select("*")
+      .eq("slug", slug)
+      .limit(1)
+      .maybeSingle();
+
+    if (fallbackErr) {
+      console.error(`[getCommodityWithChange fallback] slug=${slug}`, fallbackErr.message);
+      return null;
+    }
+
+    if (fallback) {
+      data = fallback;
+    }
   }
 
   return (data as LatestPriceWithChange) ?? null;

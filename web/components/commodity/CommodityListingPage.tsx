@@ -10,6 +10,7 @@ import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 
 import CategorySelector from "@/components/shared/CategorySelector";
+import Pagination from "@/components/shared/Pagination";
 
 interface CommodityListingPageProps {
   category?:
@@ -26,7 +27,7 @@ interface CommodityListingPageProps {
     | "other";
   title: string;
   sourcePage: string;
-  searchParams: Promise<{ q?: string; market?: string }>;
+  searchParams: Promise<{ q?: string; market?: string; page?: string }>;
 }
 
 export default async function CommodityListingPage({
@@ -38,7 +39,12 @@ export default async function CommodityListingPage({
   const resolvedParams = await searchParams;
   const search = resolvedParams.q || "";
   const market = resolvedParams.market || "kalimati";
-  const marketName = market === "kalimati" ? "Kalimati" : market.charAt(0).toUpperCase() + market.slice(1);
+  const page = Number(resolvedParams.page) || 1;
+  const marketName = market === "all"
+    ? "All Locations"
+    : market === "kalimati"
+      ? "Kalimati"
+      : market.charAt(0).toUpperCase() + market.slice(1);
 
   // Fetch filtered latest prices
   const prices = await getLatestPrices({ category, search, market });
@@ -55,6 +61,15 @@ export default async function CommodityListingPage({
   const todayStr = new Date().toISOString().slice(0, 10);
   const isStale = latestDateStr && latestDateStr < todayStr;
 
+  // Pagination Calculations
+  const itemsPerPage = 20;
+  const totalItems = prices.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const currentPage = Math.max(1, Math.min(page, Math.max(1, totalPages)));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+  const paginatedPrices = prices.slice(startIndex, endIndex);
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8">
       
@@ -66,7 +81,7 @@ export default async function CommodityListingPage({
 
         {prices.length === 0 && !search && (
           <div className="bg-soil-50 border border-leaf-100 rounded-xl p-6 text-center text-soil-800/60 shadow-sm">
-            Price data will appear here once the first daily update runs for the {marketName} market.
+            Price data will appear here once the first daily update runs for {market === "all" ? "any location" : `the ${marketName} market`}.
           </div>
         )}
 
@@ -74,7 +89,7 @@ export default async function CommodityListingPage({
           <div className="bg-soil-50 border border-leaf-100 rounded-xl p-4 flex items-start gap-3 shadow-sm">
             <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
             <p className="text-sm text-soil-800 font-medium">
-              Notice: Showing prices for {formatBSDate(latestDateStr, "en")} ({latestDateStr}) as today's market prices have not yet been published by {marketName}.
+              Notice: Showing prices for {formatBSDate(latestDateStr, "en")} ({latestDateStr}) as today's market prices have not yet been published by {market === "all" ? "all locations" : marketName}.
             </p>
           </div>
         )}
@@ -99,8 +114,16 @@ export default async function CommodityListingPage({
       </section>
 
       {/* Commodity lists (Responsive) */}
-      <PriceCardList prices={prices} className="md:hidden" />
-      <PriceTable prices={prices} className="hidden md:block" />
+      <PriceCardList prices={paginatedPrices} showMarket={market === "all"} className="md:hidden" />
+      <PriceTable prices={paginatedPrices} showMarket={market === "all"} className="hidden md:block" />
+
+      {/* Pagination Controls */}
+      <Pagination
+        totalPages={totalPages}
+        currentPage={currentPage}
+        totalItems={totalItems}
+        itemsPerPage={itemsPerPage}
+      />
 
       {/* Alert Signup section */}
       <AlertSignupForm sourcePage={sourcePage} />
