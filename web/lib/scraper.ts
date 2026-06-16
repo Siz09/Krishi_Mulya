@@ -228,42 +228,6 @@ export async function runScrape(opts?: {
       avg_price: row.avgPrice,
       unit: mapEntry.unit,
     });
-
-    // 2. Source: ramro_patro (Mirror site)
-    toUpsert.push({
-      commodity_id: dbEntry.id,
-      market: "kalimati",
-      source: "ramro_patro",
-      price_date: priceDate,
-      min_price: row.minPrice,
-      max_price: row.maxPrice,
-      avg_price: row.avgPrice,
-      unit: mapEntry.unit,
-    });
-
-    // 3. Source: market_bulletin (Independent bulletin, has some human entry discrepancies)
-    // We add a tiny variance to some items (e.g. +/- 2 rupees) to showcase the consensus validator
-    let bulletinAvg = row.avgPrice;
-    let bulletinMin = row.minPrice;
-    let bulletinMax = row.maxPrice;
-
-    if (bulletinAvg !== null && dbEntry.id % 7 === 0) {
-      const variance = dbEntry.id % 2 === 0 ? 2 : -2;
-      bulletinAvg = Math.max(0, bulletinAvg + variance);
-      if (bulletinMin !== null) bulletinMin = Math.max(0, bulletinMin + variance);
-      if (bulletinMax !== null) bulletinMax = Math.max(0, bulletinMax + variance);
-    }
-
-    toUpsert.push({
-      commodity_id: dbEntry.id,
-      market: "kalimati",
-      source: "market_bulletin",
-      price_date: priceDate,
-      min_price: bulletinMin,
-      max_price: bulletinMax,
-      avg_price: bulletinAvg,
-      unit: mapEntry.unit,
-    });
   }
 
   // ── Step 3: upsert into daily_prices ──────────────────────────────────────
