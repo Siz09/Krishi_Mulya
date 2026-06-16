@@ -28,7 +28,7 @@ export default function MarketSelector() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const currentMarket = searchParams.get("market") || "kalimati";
+  const currentMarket = searchParams.get("market") || "all";
   const selectedMarket = MARKETS.find((m) => m.id === currentMarket) || MARKETS[0];
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export default function MarketSelector() {
   const handleSelect = (marketId: string) => {
     setIsOpen(false);
     const params = new URLSearchParams(searchParams.toString());
-    if (marketId === "kalimati") {
+    if (marketId === "all") {
       params.delete("market");
     } else {
       params.set("market", marketId);

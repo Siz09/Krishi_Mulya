@@ -56,7 +56,7 @@ export default async function CommodityListingPage({
 }: CommodityListingPageProps) {
   const resolvedParams = await searchParams;
   const search = resolvedParams.q || "";
-  const market = resolvedParams.market || "kalimati";
+  const market = resolvedParams.market || "all";
   const page = Number(resolvedParams.page) || 1;
   const marketName = market === "all"
     ? "All Locations"

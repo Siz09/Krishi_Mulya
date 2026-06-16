@@ -24,7 +24,7 @@ export async function getLatestPrices(opts?: {
   search?: string;
   market?: string;
 }): Promise<LatestPriceWithChange[]> {
-  const market = opts?.market || "kalimati";
+  const market = opts?.market || "all";
   let query = supabase
     .from("latest_prices_with_changes")
     .select("*")
