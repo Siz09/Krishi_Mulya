@@ -9,6 +9,8 @@ import AlertSignupForm from "@/components/shared/AlertSignupForm";
 import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 
+import CategorySelector from "@/components/shared/CategorySelector";
+
 interface CommodityListingPageProps {
   category?:
     | "vegetable"
@@ -53,30 +55,6 @@ export default async function CommodityListingPage({
   const todayStr = new Date().toISOString().slice(0, 10);
   const isStale = latestDateStr && latestDateStr < todayStr;
 
-  // Build safe URL search query preserving both search term and market
-  const getCategoryHref = (path: string) => {
-    const params = new URLSearchParams();
-    if (search) params.set("q", search);
-    if (market && market !== "kalimati") params.set("market", market);
-    const queryString = params.toString();
-    return queryString ? `${path}?${queryString}` : path;
-  };
-
-  const categories = [
-    { label: "All", href: "/", active: !category },
-    { label: "Vegetables", href: "/vegetables", active: category === "vegetable" },
-    { label: "Fruits", href: "/fruits", active: category === "fruit" },
-    { label: "Spices", href: "/spices", active: category === "spice" },
-    { label: "Leafy Greens", href: "/leafy-greens", active: category === "leafy_green" },
-    { label: "Mushrooms", href: "/mushrooms", active: category === "mushroom" },
-    { label: "Root Vegetables", href: "/root-vegetables", active: category === "root_vegetable" },
-    { label: "Legumes", href: "/legumes", active: category === "legume" },
-    { label: "Fish", href: "/fish", active: category === "fish" },
-    { label: "Meat", href: "/meat", active: category === "meat" },
-    { label: "Dairy", href: "/dairy", active: category === "dairy" },
-    { label: "Other Grains", href: "/other-grains", active: category === "other" },
-  ];
-
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8">
       
@@ -103,30 +81,20 @@ export default async function CommodityListingPage({
       </header>
 
       {/* Search, Market Selector and Category filters */}
-      <section className="flex flex-col lg:flex-row justify-between items-center gap-4 bg-white/50 p-4 rounded-2xl border border-leaf-100/40 backdrop-blur-sm shadow-sm">
-        <div className="flex flex-col md:flex-row items-center gap-3 w-full lg:w-auto">
+      <section className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/50 p-4 rounded-2xl border border-leaf-100/40 backdrop-blur-sm shadow-sm w-full">
+        <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
           <Suspense fallback={<div className="h-10 w-full md:w-96 bg-leaf-50/20 rounded-lg animate-pulse" />}>
             <SearchBar />
           </Suspense>
-          <Suspense fallback={<div className="h-10 w-full md:w-80 bg-leaf-50/20 rounded-lg animate-pulse" />}>
+          <Suspense fallback={<div className="h-10 w-full md:w-60 bg-leaf-50/20 rounded-lg animate-pulse" />}>
             <MarketSelector />
           </Suspense>
         </div>
 
-        <div className="flex overflow-x-auto w-full lg:w-auto gap-2 pb-2 lg:pb-0 scrollbar-none justify-start lg:justify-end">
-          {categories.map((cat) => (
-            <Link
-              key={cat.href}
-              href={getCategoryHref(cat.href)}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                cat.active
-                  ? "bg-leaf-600 text-white shadow-sm"
-                  : "bg-white text-soil-800/70 border border-leaf-100 hover:bg-leaf-50"
-              }`}
-            >
-              {cat.label}
-            </Link>
-          ))}
+        <div className="w-full md:w-auto flex justify-start md:justify-end">
+          <Suspense fallback={<div className="h-10 w-full md:w-56 bg-leaf-50/20 rounded-lg animate-pulse" />}>
+            <CategorySelector currentCategory={category} />
+          </Suspense>
         </div>
       </section>
 
