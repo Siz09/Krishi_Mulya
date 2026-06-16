@@ -12,6 +12,7 @@ import {
   Legend,
 } from "recharts";
 import type { DailyPrice } from "@/lib/supabase";
+import { TrendingUp } from "lucide-react";
 
 interface PriceChartProps {
   history: DailyPrice[];
@@ -28,9 +29,7 @@ export default function PriceChart({ history, locale = "en" }: PriceChartProps) 
   if (history.length <= 1) {
     return (
       <div className="h-80 w-full flex flex-col items-center justify-center border border-leaf-100 bg-soil-50/20 rounded-xl p-8 text-center text-sm text-soil-800/60">
-        <span className="material-symbols-outlined text-[36px] text-soil-800/40 mb-2">
-          show_chart
-        </span>
+        <TrendingUp className="h-9 w-9 text-soil-800/40 mb-2" />
         <p className="font-semibold text-soil-800">No History Available Yet</p>
         <p className="text-xs text-soil-800/60 mt-1 max-w-xs">
           Price history will appear here as data accumulates — check back tomorrow.
@@ -46,6 +45,11 @@ export default function PriceChart({ history, locale = "en" }: PriceChartProps) 
     min: item.min_price,
     max: item.max_price,
   }));
+
+  const prefix = locale === "ne" ? "रु" : "Rs.";
+  const labelMap: Record<string, string> = locale === "ne"
+    ? { avg: "औसत", min: "न्यूनतम", max: "अधिकतम" }
+    : { avg: "Average", min: "Minimum", max: "Maximum" };
 
   if (!isMounted) {
     return <div className="h-80 w-full bg-soil-50/20 rounded-xl animate-pulse" />;
@@ -69,7 +73,7 @@ export default function PriceChart({ history, locale = "en" }: PriceChartProps) 
             tick={{ fill: "#3a2a1d", fontSize: 11 }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(val) => `Rs. ${val}`}
+            tickFormatter={(val) => `${prefix} ${val}`}
           />
           <Tooltip
             contentStyle={{
@@ -80,13 +84,8 @@ export default function PriceChart({ history, locale = "en" }: PriceChartProps) 
             }}
             labelClassName="font-bold text-soil-800 text-xs"
             formatter={(value: any, name: any) => {
-              const label =
-                name === "avg"
-                  ? "Average"
-                  : name === "min"
-                  ? "Minimum"
-                  : "Maximum";
-              return [`Rs. ${value}`, label];
+              const label = labelMap[name] || name;
+              return [`${prefix} ${value}`, label];
             }}
           />
           <Legend

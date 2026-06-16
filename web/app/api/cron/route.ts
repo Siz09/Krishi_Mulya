@@ -17,13 +17,14 @@ export async function GET(req: NextRequest) {
   // ── Auth check ─────────────────────────────────────────────────────────────
   const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
+  const isVercelCron = req.headers.get("x-vercel-cron") === "1";
 
-  if (!cronSecret) {
+  if (!cronSecret && !isVercelCron) {
     console.error("[cron] CRON_SECRET env var is not set");
     return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
   }
 
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  if (authHeader !== `Bearer ${cronSecret}` && !isVercelCron) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

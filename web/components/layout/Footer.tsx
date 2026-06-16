@@ -1,3 +1,5 @@
+"use client";
+
 import { Sprout } from "lucide-react";
 
 export default function Footer() {

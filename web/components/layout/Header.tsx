@@ -1,19 +1,8 @@
-"use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Sprout, Languages, Search } from "lucide-react";
+import { Sprout, Languages } from "lucide-react";
+import ActiveLink from "./ActiveLink";
 
 export default function Header() {
-  const pathname = usePathname();
-
-  // Helper to determine if a link is active
-  const isActive = (path: string) => {
-    if (path === "/" && pathname === "/") return true;
-    if (path !== "/" && pathname.startsWith(path)) return true;
-    return false;
-  };
-
   const navItems = [
     { label: "All Prices", href: "/" },
     { label: "Vegetables", href: "/vegetables" },
@@ -43,19 +32,15 @@ export default function Header() {
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-8">
           {navItems.map((item) => {
-            const active = isActive(item.href);
             return (
-              <Link
+              <ActiveLink
                 key={item.href}
                 href={item.href}
-                className={`text-sm font-semibold py-1.5 transition-colors border-b-2 hover:text-leaf-600 ${
-                  active
-                    ? "border-leaf-600 text-leaf-600"
-                    : "border-transparent text-soil-800/70"
-                }`}
+                className="text-sm font-semibold py-1.5 transition-colors border-b-2 hover:text-leaf-600 border-transparent text-soil-800/70"
+                activeClassName="!border-leaf-600 !text-leaf-600"
               >
                 {item.label}
-              </Link>
+              </ActiveLink>
             );
           })}
         </nav>
@@ -76,19 +61,15 @@ export default function Header() {
       {/* Mobile Nav subheader bar */}
       <div className="md:hidden flex overflow-x-auto border-t border-leaf-50 bg-soil-50/50 px-4 py-2 gap-2 scrollbar-none">
         {navItems.map((item) => {
-          const active = isActive(item.href);
           return (
-            <Link
+            <ActiveLink
               key={item.href}
               href={item.href}
-              className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
-                active
-                  ? "bg-leaf-600 text-white shadow-sm"
-                  : "bg-white text-soil-800/70 border border-leaf-100 hover:bg-leaf-50"
-              }`}
+              className="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-colors bg-white text-soil-800/70 border border-leaf-100 hover:bg-leaf-50"
+              activeClassName="!bg-leaf-600 !text-white !border-leaf-600 shadow-sm"
             >
               {item.label}
-            </Link>
+            </ActiveLink>
           );
         })}
       </div>

@@ -1,7 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import type { LatestPriceWithChange } from "@/lib/supabase";
 import { formatPrice } from "@/lib/format";
 import PriceChangeBadge from "./PriceChangeBadge";
@@ -17,8 +14,6 @@ export default function PriceTable({
   locale = "en",
   className = "",
 }: PriceTableProps) {
-  const router = useRouter();
-
   return (
     <div className={`overflow-hidden rounded-xl border border-leaf-100 bg-white shadow-sm ${className}`}>
       <table className="w-full text-left border-collapse">
@@ -45,33 +40,36 @@ export default function PriceTable({
               return (
                 <tr
                   key={price.commodity_id}
-                  onClick={() => router.push(`/commodity/${price.slug}`)}
-                  className={`${bgClass} hover:bg-leaf-50/60 transition-colors cursor-pointer`}
+                  className={`relative ${bgClass} hover:bg-leaf-50/60 transition-colors`}
                 >
                   <td className="p-4">
-                    <div className="font-semibold text-leaf-700 hover:underline">
+                    {/* The after:absolute pseudo-element stretches the link to cover the entire relative row */}
+                    <Link
+                      href={`/commodity/${price.slug}`}
+                      className="font-semibold text-leaf-700 hover:underline block after:absolute after:inset-0 after:z-10"
+                    >
                       {price.name_en}
-                    </div>
-                    <div className="text-xs text-soil-800/50 font-devanagari font-medium mt-0.5">
+                    </Link>
+                    <div className="text-xs text-soil-800/50 font-devanagari font-medium mt-0.5 relative z-20 pointer-events-none">
                       {price.name_ne}
                     </div>
                   </td>
-                  <td className="p-4 text-soil-800/80 capitalize">
+                  <td className="p-4 text-soil-800/80 capitalize relative z-20 pointer-events-none">
                     {price.category}
                   </td>
-                  <td className="p-4 text-right font-bold text-soil-800">
-                    {formatPrice(price.avg_price, price.unit, locale).split("/")[0]}
+                  <td className="p-4 text-right font-bold text-soil-800 relative z-20 pointer-events-none">
+                    {formatPrice(price.avg_price, price.unit, locale, { priceOnly: true })}
                     <span className="text-[10px] text-soil-800/40 font-normal block">
                       per {price.unit}
                     </span>
                   </td>
-                  <td className="p-4 text-right text-soil-800/70 font-semibold">
-                    {formatPrice(price.min_price, price.unit, locale).split("/")[0]}
+                  <td className="p-4 text-right text-soil-800/70 font-semibold relative z-20 pointer-events-none">
+                    {formatPrice(price.min_price, price.unit, locale, { priceOnly: true })}
                   </td>
-                  <td className="p-4 text-right text-soil-800/70 font-semibold">
-                    {formatPrice(price.max_price, price.unit, locale).split("/")[0]}
+                  <td className="p-4 text-right text-soil-800/70 font-semibold relative z-20 pointer-events-none">
+                    {formatPrice(price.max_price, price.unit, locale, { priceOnly: true })}
                   </td>
-                  <td className="p-4 text-center">
+                  <td className="p-4 text-center relative z-20 pointer-events-none">
                     <PriceChangeBadge pct={price.change_1d_pct} />
                   </td>
                 </tr>

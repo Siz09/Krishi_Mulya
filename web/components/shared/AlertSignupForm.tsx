@@ -108,7 +108,7 @@ export default function AlertSignupForm({
       <div className="flex-1">
         <h2 className="text-xl font-bold text-leaf-700 mb-1">Get Price Alerts</h2>
         <p className="text-sm text-soil-800/70">
-          Stay updated with daily wholesale market prices for your essential agricultural commodities via SMS or Email.
+          Stay updated with daily wholesale market prices for your essential agricultural commodities via Email.
         </p>
       </div>
       <div className="w-full md:w-auto">

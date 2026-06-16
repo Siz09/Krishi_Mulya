@@ -6,7 +6,7 @@ import { formatPrice, formatBSDate } from "@/lib/format";
 import PriceChangeBadge from "@/components/commodity/PriceChangeBadge";
 import PriceChart from "@/components/commodity/PriceChart";
 import AlertSignupForm from "@/components/shared/AlertSignupForm";
-import { ChevronRight, Home, TrendingUp, TrendingDown, HelpCircle } from "lucide-react";
+import { ChevronRight, Home, HelpCircle } from "lucide-react";
 
 export const revalidate = 1800; // revalidate every 30 minutes
 
@@ -97,7 +97,7 @@ export default async function CommodityDetailPage(props: PageProps) {
             <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
               <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">Avg Price</span>
               <div className="text-xl sm:text-2xl font-black text-leaf-700 mt-1">
-                {formatPrice(commodity.avg_price, commodity.unit, "en").split("/")[0]}
+                {formatPrice(commodity.avg_price, commodity.unit, "en", { priceOnly: true })}
               </div>
               <span className="text-[10px] text-soil-800/40 mt-1">per {commodity.unit}</span>
             </div>
@@ -105,7 +105,7 @@ export default async function CommodityDetailPage(props: PageProps) {
             <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
               <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">Min Price</span>
               <div className="text-lg sm:text-xl font-extrabold text-blue-600 mt-1">
-                {formatPrice(commodity.min_price, commodity.unit, "en").split("/")[0]}
+                {formatPrice(commodity.min_price, commodity.unit, "en", { priceOnly: true })}
               </div>
               <span className="text-[10px] text-soil-800/40 mt-1">per {commodity.unit}</span>
             </div>
@@ -113,7 +113,7 @@ export default async function CommodityDetailPage(props: PageProps) {
             <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
               <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">Max Price</span>
               <div className="text-lg sm:text-xl font-extrabold text-amber-600 mt-1">
-                {formatPrice(commodity.max_price, commodity.unit, "en").split("/")[0]}
+                {formatPrice(commodity.max_price, commodity.unit, "en", { priceOnly: true })}
               </div>
               <span className="text-[10px] text-soil-800/40 mt-1">per {commodity.unit}</span>
             </div>

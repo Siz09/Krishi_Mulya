@@ -20,13 +20,22 @@ const UNIT_NE: Record<string, string> = {
 export function formatPrice(
   value: number | null | undefined,
   unit: string,
-  locale: "en" | "ne"
+  locale: "en" | "ne",
+  opts?: { priceOnly?: boolean }
 ): string {
   if (value === null || value === undefined) return "—";
 
+  const rounded = Math.round(value * 100) / 100;
+  const display = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+
   const prefix = locale === "ne" ? "रु" : "Rs.";
+
+  if (opts?.priceOnly) {
+    return `${prefix} ${display}`;
+  }
+
   const unitLabel = locale === "ne" ? (UNIT_NE[unit.toLowerCase()] ?? unit) : unit;
-  return `${prefix} ${value}/${unitLabel}`;
+  return `${prefix} ${display}/${unitLabel}`;
 }
 
 /**

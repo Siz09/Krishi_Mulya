@@ -8,7 +8,7 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
 import { createClient } from "@supabase/supabase-js";
-import { COMMODITY_MAP } from "./commodityMap";
+import { COMMODITY_MAP, COMMODITIES } from "./commodityMap";
 
 // ─── Service-role Supabase client (bypasses RLS) ─────────────────────────────
 // NEVER expose SUPABASE_SERVICE_ROLE_KEY to the browser.
@@ -159,7 +159,6 @@ export async function runScrape(opts?: {
   // If the commodities table is empty, seed it from the commodity map
   if (!existingCommodities || existingCommodities.length === 0) {
     console.log("[scraper] Commodities table is empty — seeding from commodity map...");
-    const { COMMODITIES } = await import("./commodityMap");
     const { error: insertErr } = await supabase.from("commodities").insert(
       COMMODITIES.map((c) => ({
         slug: c.slug,

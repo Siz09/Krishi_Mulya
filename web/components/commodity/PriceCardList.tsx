@@ -45,7 +45,7 @@ export default function PriceCardList({
               </div>
               <div className="text-right">
                 <div className="font-bold text-soil-800 text-lg">
-                  {formatPrice(price.avg_price, price.unit, locale).split("/")[0]}
+                  {formatPrice(price.avg_price, price.unit, locale, { priceOnly: true })}
                 </div>
                 <div className="text-[10px] text-soil-800/40 font-medium -mt-1 mb-1">
                   per {price.unit}
@@ -54,8 +54,8 @@ export default function PriceCardList({
               </div>
             </div>
             <div className="flex justify-between text-xs font-semibold text-soil-800/70 pt-2.5 border-t border-leaf-50/80">
-              <span>Min: {formatPrice(price.min_price, price.unit, locale).split("/")[0]}</span>
-              <span>Max: {formatPrice(price.max_price, price.unit, locale).split("/")[0]}</span>
+              <span>Min: {formatPrice(price.min_price, price.unit, locale, { priceOnly: true })}</span>
+              <span>Max: {formatPrice(price.max_price, price.unit, locale, { priceOnly: true })}</span>
             </div>
           </Link>
         );

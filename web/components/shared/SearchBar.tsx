@@ -20,6 +20,9 @@ export default function SearchBar() {
   useEffect(() => {
     const handler = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
+      const currentQ = params.get("q") || "";
+      if (currentQ === inputValue) return;
+
       if (inputValue) {
         params.set("q", inputValue);
       } else {
