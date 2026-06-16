@@ -145,7 +145,7 @@ async function fetchNirivPriceTable(): Promise<RawRow[]> {
     });
     return rows;
   } catch (err) {
-    console.warn("[scraper] Niriv Bazaar fetch timed out/failed. Using consensus fallback.");
+    console.warn("[scraper] Niriv Bazaar fetch timed out/failed. Skipping this source.");
     return [];
   }
 }
@@ -175,7 +175,7 @@ async function fetchAmpisPriceTable(market: string): Promise<RawRow[]> {
     });
     return rows;
   } catch (err) {
-    console.warn(`[scraper] AMPIS ${market} fetch timed out/failed. Using regional fallback.`);
+    console.warn(`[scraper] AMPIS ${market} fetch timed out/failed. Skipping this source.`);
     return [];
   }
 }
@@ -299,134 +299,65 @@ export async function runScrape(opts?: {
       unit: mapEntry.unit,
     });
 
-    // 2. Kalimati - Niriv Bazaar (Scraped or fallback)
+    // 2. Kalimati - Niriv Bazaar (Only if successfully scraped)
     const nirivMatch = nirivMap.get(cleaned);
-    let nirivAvg = nirivMatch?.avgPrice ?? null;
-    let nirivMin = nirivMatch?.minPrice ?? null;
-    let nirivMax = nirivMatch?.maxPrice ?? null;
-
-    if (nirivAvg === null && row.avgPrice !== null) {
-      const multiplier = 0.98 + (dbEntry.id % 5) * 0.01; // 0.98 to 1.02 variance
-      nirivAvg = Math.round(row.avgPrice * multiplier);
-      if (row.minPrice !== null) nirivMin = Math.round(row.minPrice * multiplier);
-      if (row.maxPrice !== null) nirivMax = Math.round(row.maxPrice * multiplier);
+    if (nirivMatch) {
+      toUpsert.push({
+        commodity_id: dbEntry.id,
+        market: "kalimati",
+        source: "niriv",
+        price_date: priceDate,
+        min_price: nirivMatch.minPrice,
+        max_price: nirivMatch.maxPrice,
+        avg_price: nirivMatch.avgPrice,
+        unit: mapEntry.unit,
+      });
     }
 
-    toUpsert.push({
-      commodity_id: dbEntry.id,
-      market: "kalimati",
-      source: "niriv",
-      price_date: priceDate,
-      min_price: nirivMin,
-      max_price: nirivMax,
-      avg_price: nirivAvg,
-      unit: mapEntry.unit,
-    });
-
-    // 3. Pokhara - Official & AMPIS (Scraped or fallback)
+    // 3. Pokhara - AMPIS (Only if successfully scraped)
     const pokharaMatch = pokharaMap.get(cleaned);
-    let pokharaAvg = pokharaMatch?.avgPrice ?? null;
-    let pokharaMin = pokharaMatch?.minPrice ?? null;
-    let pokharaMax = pokharaMatch?.maxPrice ?? null;
-
-    if (pokharaAvg === null && row.avgPrice !== null) {
-      // Fallback: Pokhara sits at ~5% discount from Kalimati wholesale
-      pokharaAvg = Math.round(row.avgPrice * 0.95);
-      if (row.minPrice !== null) pokharaMin = Math.round(row.minPrice * 0.95);
-      if (row.maxPrice !== null) pokharaMax = Math.round(row.maxPrice * 0.95);
+    if (pokharaMatch) {
+      toUpsert.push({
+        commodity_id: dbEntry.id,
+        market: "pokhara",
+        source: "official",
+        price_date: priceDate,
+        min_price: pokharaMatch.minPrice,
+        max_price: pokharaMatch.maxPrice,
+        avg_price: pokharaMatch.avgPrice,
+        unit: mapEntry.unit,
+      });
     }
 
-    toUpsert.push({
-      commodity_id: dbEntry.id,
-      market: "pokhara",
-      source: "official",
-      price_date: priceDate,
-      min_price: pokharaMin,
-      max_price: pokharaMax,
-      avg_price: pokharaAvg,
-      unit: mapEntry.unit,
-    });
-
-    toUpsert.push({
-      commodity_id: dbEntry.id,
-      market: "pokhara",
-      source: "ampis",
-      price_date: priceDate,
-      min_price: pokharaMin,
-      max_price: pokharaMax,
-      avg_price: pokharaAvg !== null ? pokharaAvg + (dbEntry.id % 3 - 1) : null, // +/- 1 rupee report lag
-      unit: mapEntry.unit,
-    });
-
-    // 4. Butwal - Official & AMPIS (Scraped or fallback)
+    // 4. Butwal - AMPIS (Only if successfully scraped)
     const butwalMatch = butwalMap.get(cleaned);
-    let butwalAvg = butwalMatch?.avgPrice ?? null;
-    let butwalMin = butwalMatch?.minPrice ?? null;
-    let butwalMax = butwalMatch?.maxPrice ?? null;
-
-    if (butwalAvg === null && row.avgPrice !== null) {
-      // Fallback: Butwal sits at ~5% premium from Kalimati wholesale
-      butwalAvg = Math.round(row.avgPrice * 1.05);
-      if (row.minPrice !== null) butwalMin = Math.round(row.minPrice * 1.05);
-      if (row.maxPrice !== null) butwalMax = Math.round(row.maxPrice * 1.05);
+    if (butwalMatch) {
+      toUpsert.push({
+        commodity_id: dbEntry.id,
+        market: "butwal",
+        source: "official",
+        price_date: priceDate,
+        min_price: butwalMatch.minPrice,
+        max_price: butwalMatch.maxPrice,
+        avg_price: butwalMatch.avgPrice,
+        unit: mapEntry.unit,
+      });
     }
 
-    toUpsert.push({
-      commodity_id: dbEntry.id,
-      market: "butwal",
-      source: "official",
-      price_date: priceDate,
-      min_price: butwalMin,
-      max_price: butwalMax,
-      avg_price: butwalAvg,
-      unit: mapEntry.unit,
-    });
-
-    toUpsert.push({
-      commodity_id: dbEntry.id,
-      market: "butwal",
-      source: "ampis",
-      price_date: priceDate,
-      min_price: butwalMin,
-      max_price: butwalMax,
-      avg_price: butwalAvg !== null ? butwalAvg + (dbEntry.id % 3 - 1) : null,
-      unit: mapEntry.unit,
-    });
-
-    // 5. Biratnagar - Official & AMPIS (Scraped or fallback)
+    // 5. Biratnagar - AMPIS (Only if successfully scraped)
     const biratnagarMatch = biratnagarMap.get(cleaned);
-    let biratnagarAvg = biratnagarMatch?.avgPrice ?? null;
-    let biratnagarMin = biratnagarMatch?.minPrice ?? null;
-    let biratnagarMax = biratnagarMatch?.maxPrice ?? null;
-
-    if (biratnagarAvg === null && row.avgPrice !== null) {
-      // Fallback: Biratnagar sits at ~2% discount from Kalimati wholesale
-      biratnagarAvg = Math.round(row.avgPrice * 0.98);
-      if (row.minPrice !== null) biratnagarMin = Math.round(row.minPrice * 0.98);
-      if (row.maxPrice !== null) biratnagarMax = Math.round(row.maxPrice * 0.98);
+    if (biratnagarMatch) {
+      toUpsert.push({
+        commodity_id: dbEntry.id,
+        market: "biratnagar",
+        source: "official",
+        price_date: priceDate,
+        min_price: biratnagarMatch.minPrice,
+        max_price: biratnagarMatch.maxPrice,
+        avg_price: biratnagarMatch.avgPrice,
+        unit: mapEntry.unit,
+      });
     }
-
-    toUpsert.push({
-      commodity_id: dbEntry.id,
-      market: "biratnagar",
-      source: "official",
-      price_date: priceDate,
-      min_price: biratnagarMin,
-      max_price: biratnagarMax,
-      avg_price: biratnagarAvg,
-      unit: mapEntry.unit,
-    });
-
-    toUpsert.push({
-      commodity_id: dbEntry.id,
-      market: "biratnagar",
-      source: "ampis",
-      price_date: priceDate,
-      min_price: biratnagarMin,
-      max_price: biratnagarMax,
-      avg_price: biratnagarAvg !== null ? biratnagarAvg + (dbEntry.id % 3 - 1) : null,
-      unit: mapEntry.unit,
-    });
   }
 
   // ── Step 3: upsert into daily_prices ──────────────────────────────────────
