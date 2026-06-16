@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+/* ─── Krishi Mulya Design Tokens ─────────────────────────────────────────── */
+/* Agricultural theme — leaf (green) as primary, soil (brown) as text base.  */
+/* Defined as Tailwind v4 CSS theme variables so every component can use      */
+/* standard Tailwind utility classes like bg-leaf-600, text-soil-800, etc.   */
+
+@theme inline {
+  /* Leaf greens */
+  --color-leaf-50: #f0f9f4;
+  --color-leaf-100: #dcf0e4;
+  --color-leaf-500: #1d9e75;
+  --color-leaf-600: #15805e;
+  --color-leaf-700: #0f4a2e;
+
+  /* Soil browns */
+  --color-soil-50: #fbf8f3;
+  --color-soil-800: #3a2a1d;
+
+  /* Fonts */
+  --font-sans: var(--font-sans), system-ui, sans-serif;
+  --font-devanagari: var(--font-devanagari), system-ui, sans-serif;
+}
+
+/* ─── Base styles ────────────────────────────────────────────────────────── */
+body {
+  font-family: var(--font-sans);
+}

@@ -1,0 +1,19 @@
+# Environment variables — never commit these
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+
+# Next.js build output
+web/.next/
+web/out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+*.swp

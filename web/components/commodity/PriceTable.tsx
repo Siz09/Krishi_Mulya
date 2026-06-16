@@ -1,0 +1,85 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { LatestPriceWithChange } from "@/lib/supabase";
+import { formatPrice } from "@/lib/format";
+import PriceChangeBadge from "./PriceChangeBadge";
+
+interface PriceTableProps {
+  prices: LatestPriceWithChange[];
+  locale?: "en" | "ne";
+  className?: string;
+}
+
+export default function PriceTable({
+  prices,
+  locale = "en",
+  className = "",
+}: PriceTableProps) {
+  const router = useRouter();
+
+  return (
+    <div className={`overflow-hidden rounded-xl border border-leaf-100 bg-white shadow-sm ${className}`}>
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr className="bg-leaf-600 text-white font-semibold text-xs uppercase tracking-wider">
+            <th className="p-4">Commodity</th>
+            <th className="p-4">Category</th>
+            <th className="p-4 text-right">Avg Price</th>
+            <th className="p-4 text-right">Min Price</th>
+            <th className="p-4 text-right">Max Price</th>
+            <th className="p-4 text-center">1-Day Change</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-leaf-100 text-sm">
+          {prices.length === 0 ? (
+            <tr>
+              <td colSpan={6} className="p-8 text-center text-soil-800/50">
+                No commodities found matching your search.
+              </td>
+            </tr>
+          ) : (
+            prices.map((price, idx) => {
+              const bgClass = idx % 2 === 1 ? "bg-soil-50/40" : "bg-white";
+              return (
+                <tr
+                  key={price.commodity_id}
+                  onClick={() => router.push(`/commodity/${price.slug}`)}
+                  className={`${bgClass} hover:bg-leaf-50/60 transition-colors cursor-pointer`}
+                >
+                  <td className="p-4">
+                    <div className="font-semibold text-leaf-700 hover:underline">
+                      {price.name_en}
+                    </div>
+                    <div className="text-xs text-soil-800/50 font-devanagari font-medium mt-0.5">
+                      {price.name_ne}
+                    </div>
+                  </td>
+                  <td className="p-4 text-soil-800/80 capitalize">
+                    {price.category}
+                  </td>
+                  <td className="p-4 text-right font-bold text-soil-800">
+                    {formatPrice(price.avg_price, price.unit, locale).split("/")[0]}
+                    <span className="text-[10px] text-soil-800/40 font-normal block">
+                      per {price.unit}
+                    </span>
+                  </td>
+                  <td className="p-4 text-right text-soil-800/70 font-semibold">
+                    {formatPrice(price.min_price, price.unit, locale).split("/")[0]}
+                  </td>
+                  <td className="p-4 text-right text-soil-800/70 font-semibold">
+                    {formatPrice(price.max_price, price.unit, locale).split("/")[0]}
+                  </td>
+                  <td className="p-4 text-center">
+                    <PriceChangeBadge pct={price.change_1d_pct} />
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}

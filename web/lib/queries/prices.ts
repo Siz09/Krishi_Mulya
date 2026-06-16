@@ -1,0 +1,104 @@
+import { supabase } from "../supabase";
+import type { Commodity, DailyPrice, LatestPriceWithChange } from "../supabase";
+
+/**
+ * Dashboard / category pages — one query for prices + changes.
+ *
+ * Search is case-insensitive substring match against BOTH name_en and name_ne,
+ * regardless of the active UI locale. An English-locale user typing "गोलभेडा"
+ * and a Nepali-locale user typing "tomato" both get correct results.
+ */
+export async function getLatestPrices(opts?: {
+  category?: "vegetable" | "fruit" | "fish";
+  search?: string;
+}): Promise<LatestPriceWithChange[]> {
+  let query = supabase
+    .from("latest_prices_with_changes")
+    .select("*")
+    .order("name_en", { ascending: true });
+
+  if (opts?.category) {
+    query = query.eq("category", opts.category);
+  }
+
+  if (opts?.search?.trim()) {
+    const term = opts.search.trim();
+    query = query.or(`name_en.ilike.%${term}%,name_ne.ilike.%${term}%`);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("[getLatestPrices]", error.message);
+    return [];
+  }
+
+  return (data as LatestPriceWithChange[]) ?? [];
+}
+
+/**
+ * Commodity detail — stats + change badges for one commodity.
+ * Returns null for an invalid slug — callers use notFound() to render 404.
+ */
+export async function getCommodityWithChange(
+  slug: string
+): Promise<LatestPriceWithChange | null> {
+  const { data, error } = await supabase
+    .from("latest_prices_with_changes")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) {
+    console.error(`[getCommodityWithChange] slug=${slug}`, error.message);
+    return null;
+  }
+
+  return (data as LatestPriceWithChange) ?? null;
+}
+
+/**
+ * Commodity detail — historical price series for the Recharts line chart.
+ *
+ * Returns history in ascending chronological order so the chart renders
+ * left-to-right as time progresses. The commodity row is returned alongside
+ * so the detail page has metadata without a second query.
+ */
+export async function getCommodityHistory(
+  slug: string,
+  days: number = 90
+): Promise<{ commodity: Commodity | null; history: DailyPrice[] }> {
+  // 1. Commodity metadata
+  const { data: commodity, error: commErr } = await supabase
+    .from("commodities")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (commErr || !commodity) {
+    if (commErr) console.error(`[getCommodityHistory] metadata slug=${slug}`, commErr.message);
+    return { commodity: null, history: [] };
+  }
+
+  // 2. Price series (last N days, oldest first for chart)
+  const threshold = new Date();
+  threshold.setDate(threshold.getDate() - days);
+  const thresholdStr = threshold.toISOString().slice(0, 10); // YYYY-MM-DD
+
+  const { data: history, error: histErr } = await supabase
+    .from("daily_prices")
+    .select("*")
+    .eq("commodity_id", commodity.id)
+    .gte("price_date", thresholdStr)
+    .order("price_date", { ascending: true });
+
+  if (histErr) {
+    console.error(`[getCommodityHistory] history id=${commodity.id}`, histErr.message);
+    return { commodity: commodity as Commodity, history: [] };
+  }
+
+  return {
+    commodity: commodity as Commodity,
+    history: (history as DailyPrice[]) ?? [],
+  };
+}
