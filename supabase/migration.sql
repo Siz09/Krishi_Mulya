@@ -17,7 +17,6 @@ create policy "Public can read sources" on sources for select using (true);
 -- Seed initial sources
 insert into sources (slug, name, website, is_independent, source_type) values
   ('official', 'Official Board', 'https://kalimatimarket.gov.np', true, 'board'),
-  ('niriv', 'Niriv Bazaar', 'https://www.niriv.com', false, 'mirror'),
   ('ampis', 'Government AMPIS Feed', 'https://ampis.gov.np', true, 'api')
 on conflict (slug) do update set
   name = excluded.name,

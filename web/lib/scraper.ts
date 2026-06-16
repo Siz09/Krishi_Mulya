@@ -120,33 +120,109 @@ async function fetchPriceTable(): Promise<RawRow[]> {
 
 // ─── AMPIS Scraper ──────────────────────────────────────────────────────────
 
+const AMPIS_MARKETS = [
+  { id: "5", slug: "birtamod" },
+  { id: "6", slug: "dharan" },
+  { id: "7", slug: "dhalkebar" },
+  { id: "8", slug: "kamalamai" },
+  { id: "9", slug: "kawasoti" },
+  { id: "10", slug: "pokhara" },
+  { id: "11", slug: "butwal" },
+  { id: "12", slug: "kohalpur" },
+  { id: "13", slug: "birendranagar" },
+  { id: "14", slug: "attariya" },
+  { id: "15", slug: "lalbandi" },
+  { id: "23", slug: "kalimati" },
+];
 
-async function fetchAmpisPriceTable(market: string): Promise<RawRow[]> {
+async function fetchAmpisDateIds(): Promise<{ yearId: string; monthId: string }> {
   try {
-    const res = await axios.get(`https://ampis.gov.np/market-rate?market=${market}`, {
+    const res = await axios.get("https://ampis.gov.np", {
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; KrishiMulyaBot/1.0; +https://krishimulya.com)",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       },
-      timeout: 5000,
+      timeout: 10000,
+    });
+    const $ = cheerio.load(res.data);
+
+    // Extract selected or first year option
+    const yearId = $("#edit-field-market-rate-year-target-id-entityreference-filter option[selected]").attr("value") || 
+                   $("#edit-field-market-rate-year-target-id-entityreference-filter option").eq(1).attr("value") || 
+                   "1614822"; // 2083 default
+    
+    // Extract date text to find current month
+    let dateText = "";
+    $("p, div, span").each((_, el) => {
+      const txt = $(el).text().trim();
+      if (txt.includes("मिति:") || txt.includes("मिति :")) {
+        dateText = txt;
+        return false;
+      }
+    });
+
+    let monthId = "35"; // Asar default
+    if (dateText) {
+      const match = dateText.match(/मिति\s*:\s*([^\s]+)\s+(\d+),\s*(\d+)/) || 
+                    dateText.match(/मिति\s*:\s*([^\s\d]+)/);
+      if (match) {
+        const rawMonthName = match[1];
+        const monthOptions: { value: string; name: string }[] = [];
+        $("#edit-field-market-rate-month-target-id option").each((_, el) => {
+          const val = $(el).attr("value") || "";
+          const text = $(el).text().trim();
+          if (val !== "All") {
+            monthOptions.push({ value: val, name: text });
+          }
+        });
+        const foundMonth = monthOptions.find(o => rawMonthName.includes(o.name) || o.name.includes(rawMonthName));
+        if (foundMonth) {
+          monthId = foundMonth.value;
+        }
+      }
+    }
+
+    return { yearId, monthId };
+  } catch (err) {
+    console.warn("[scraper] Failed to fetch AMPIS date IDs, using defaults:", err);
+    return { yearId: "1614822", monthId: "35" };
+  }
+}
+
+async function fetchAmpisPriceTable(marketId: string, yearId: string, monthId: string): Promise<RawRow[]> {
+  try {
+    const res = await axios.get("https://ampis.gov.np/market-price-comparison", {
+      params: {
+        uid_entityreference_filter: marketId,
+        field_market_rate_commodity_target_id_entityreference_filter: "All",
+        field_market_rate_year_target_id_entityreference_filter: yearId,
+        field_market_rate_month_target_id: monthId,
+      },
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+      timeout: 15000,
     });
     const $ = cheerio.load(res.data);
     const rows: RawRow[] = [];
     
-    $("table tbody tr").each((_, el) => {
-      const cells = $(el).find("td");
-      if (cells.length >= 4) {
-        const rawName = $(cells[0]).text().trim();
-        const minPrice = parseFloat($(cells[1]).text().replace(/[^\d.]/g, "")) || null;
-        const maxPrice = parseFloat($(cells[2]).text().replace(/[^\d.]/g, "")) || null;
-        const avgPrice = parseFloat($(cells[3]).text().replace(/[^\d.]/g, "")) || null;
-        if (rawName) {
-          rows.push({ rawName, unit: "KG", minPrice, maxPrice, avgPrice });
+    $("table").each((_, tableEl) => {
+      $(tableEl).find("tbody tr").each((_, tr) => {
+        const cells = $(tr).find("td");
+        if (cells.length >= 8) {
+          const rawName = $(cells[3]).text().trim();
+          const unit = $(cells[4]).text().trim();
+          const minPrice = parseFloat($(cells[5]).text().replace(/[^\d.]/g, "")) || null;
+          const maxPrice = parseFloat($(cells[6]).text().replace(/[^\d.]/g, "")) || null;
+          const avgPrice = parseFloat($(cells[7]).text().replace(/[^\d.]/g, "")) || null;
+          if (rawName) {
+            rows.push({ rawName, unit, minPrice, maxPrice, avgPrice });
+          }
         }
-      }
+      });
     });
     return rows;
   } catch (err) {
-    console.warn(`[scraper] AMPIS ${market} fetch timed out/failed. Skipping this source.`);
+    console.warn(`[scraper] AMPIS market ${marketId} fetch timed out/failed. Skipping.`);
     return [];
   }
 }
@@ -241,19 +317,10 @@ export async function runScrape(opts?: {
   const toUpsert: UpsertRow[] = [];
   const unmatched: { raw: string; cleaned: string }[] = [];
 
-  // Try to load third party / government sources
-  const pokharaAmpisRows = await fetchAmpisPriceTable("pokhara");
-  const butwalAmpisRows = await fetchAmpisPriceTable("butwal");
-  const biratnagarAmpisRows = await fetchAmpisPriceTable("biratnagar");
-
-  // Helper maps for match checks
-  const pokharaMap = new Map(pokharaAmpisRows.map(r => [normaliseCommodityName(r.rawName), r]));
-  const butwalMap = new Map(butwalAmpisRows.map(r => [normaliseCommodityName(r.rawName), r]));
-  const biratnagarMap = new Map(biratnagarAmpisRows.map(r => [normaliseCommodityName(r.rawName), r]));
-
   const officialSourceId = sourceMap.get("official")!;
   const ampisSourceId = sourceMap.get("ampis")!;
 
+  // 1. Process Kalimati - Official (scraped)
   for (const row of rawRows) {
     const cleaned = normaliseCommodityName(row.rawName);
     const mapEntry = COMMODITY_MAP.get(cleaned);
@@ -269,7 +336,6 @@ export async function runScrape(opts?: {
       continue;
     }
 
-    // 1. Kalimati - Official (scraped)
     toUpsert.push({
       commodity_id: dbEntry.id,
       market: "kalimati",
@@ -280,49 +346,40 @@ export async function runScrape(opts?: {
       avg_price: row.avgPrice,
       unit: mapEntry.unit,
     });
+  }
 
+  // 2. Fetch AMPIS year and month IDs dynamically
+  const { yearId, monthId } = await fetchAmpisDateIds();
+  console.log(`[scraper] AMPIS dynamic IDs resolved: Year ID = ${yearId}, Month ID = ${monthId}`);
 
-    // 3. Pokhara - AMPIS (Only if successfully scraped)
-    const pokharaMatch = pokharaMap.get(cleaned);
-    if (pokharaMatch) {
+  // 3. Process AMPIS markets sequentially
+  for (const m of AMPIS_MARKETS) {
+    console.log(`[scraper] Scraping AMPIS market: ${m.slug} (ID: ${m.id})...`);
+    const marketRows = await fetchAmpisPriceTable(m.id, yearId, monthId);
+    console.log(`[scraper] Parsed ${marketRows.length} rows for market: ${m.slug}`);
+    
+    for (const row of marketRows) {
+      const cleaned = normaliseCommodityName(row.rawName);
+      const mapEntry = COMMODITY_MAP.get(cleaned);
+
+      if (!mapEntry) {
+        // Log or track unmatched if helpful, or skip
+        continue;
+      }
+
+      const dbEntry = dbMap.get(mapEntry.name_ne);
+      if (!dbEntry) {
+        continue;
+      }
+
       toUpsert.push({
         commodity_id: dbEntry.id,
-        market: "pokhara",
+        market: m.slug,
         source_id: ampisSourceId,
         price_date: priceDate,
-        min_price: pokharaMatch.minPrice,
-        max_price: pokharaMatch.maxPrice,
-        avg_price: pokharaMatch.avgPrice,
-        unit: mapEntry.unit,
-      });
-    }
-
-    // 4. Butwal - AMPIS (Only if successfully scraped)
-    const butwalMatch = butwalMap.get(cleaned);
-    if (butwalMatch) {
-      toUpsert.push({
-        commodity_id: dbEntry.id,
-        market: "butwal",
-        source_id: ampisSourceId,
-        price_date: priceDate,
-        min_price: butwalMatch.minPrice,
-        max_price: butwalMatch.maxPrice,
-        avg_price: butwalMatch.avgPrice,
-        unit: mapEntry.unit,
-      });
-    }
-
-    // 5. Biratnagar - AMPIS (Only if successfully scraped)
-    const biratnagarMatch = biratnagarMap.get(cleaned);
-    if (biratnagarMatch) {
-      toUpsert.push({
-        commodity_id: dbEntry.id,
-        market: "biratnagar",
-        source_id: ampisSourceId,
-        price_date: priceDate,
-        min_price: biratnagarMatch.minPrice,
-        max_price: biratnagarMatch.maxPrice,
-        avg_price: biratnagarMatch.avgPrice,
+        min_price: row.minPrice,
+        max_price: row.maxPrice,
+        avg_price: row.avgPrice,
         unit: mapEntry.unit,
       });
     }
