@@ -118,37 +118,8 @@ async function fetchPriceTable(): Promise<RawRow[]> {
   return rows;
 }
 
-// ─── Niriv Bazaar & AMPIS Scrapers ──────────────────────────────────────────
+// ─── AMPIS Scraper ──────────────────────────────────────────────────────────
 
-async function fetchNirivPriceTable(): Promise<RawRow[]> {
-  try {
-    const res = await axios.get("https://www.niriv.com/bazaar", {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; KrishiMulyaBot/1.0; +https://krishimulya.com)",
-      },
-      timeout: 5000,
-    });
-    const $ = cheerio.load(res.data);
-    const rows: RawRow[] = [];
-    
-    $("table tbody tr").each((_, el) => {
-      const cells = $(el).find("td");
-      if (cells.length >= 4) {
-        const rawName = $(cells[0]).text().trim();
-        const minPrice = parseFloat($(cells[1]).text().replace(/[^\d.]/g, "")) || null;
-        const maxPrice = parseFloat($(cells[2]).text().replace(/[^\d.]/g, "")) || null;
-        const avgPrice = parseFloat($(cells[3]).text().replace(/[^\d.]/g, "")) || null;
-        if (rawName) {
-          rows.push({ rawName, unit: "KG", minPrice, maxPrice, avgPrice });
-        }
-      }
-    });
-    return rows;
-  } catch (err) {
-    console.warn("[scraper] Niriv Bazaar fetch timed out/failed. Skipping this source.");
-    return [];
-  }
-}
 
 async function fetchAmpisPriceTable(market: string): Promise<RawRow[]> {
   try {
@@ -271,19 +242,16 @@ export async function runScrape(opts?: {
   const unmatched: { raw: string; cleaned: string }[] = [];
 
   // Try to load third party / government sources
-  const nirivRows = await fetchNirivPriceTable();
   const pokharaAmpisRows = await fetchAmpisPriceTable("pokhara");
   const butwalAmpisRows = await fetchAmpisPriceTable("butwal");
   const biratnagarAmpisRows = await fetchAmpisPriceTable("biratnagar");
 
   // Helper maps for match checks
-  const nirivMap = new Map(nirivRows.map(r => [normaliseCommodityName(r.rawName), r]));
   const pokharaMap = new Map(pokharaAmpisRows.map(r => [normaliseCommodityName(r.rawName), r]));
   const butwalMap = new Map(butwalAmpisRows.map(r => [normaliseCommodityName(r.rawName), r]));
   const biratnagarMap = new Map(biratnagarAmpisRows.map(r => [normaliseCommodityName(r.rawName), r]));
 
   const officialSourceId = sourceMap.get("official")!;
-  const nirivSourceId = sourceMap.get("niriv")!;
   const ampisSourceId = sourceMap.get("ampis")!;
 
   for (const row of rawRows) {
@@ -313,20 +281,6 @@ export async function runScrape(opts?: {
       unit: mapEntry.unit,
     });
 
-    // 2. Kalimati - Niriv Bazaar (Only if successfully scraped)
-    const nirivMatch = nirivMap.get(cleaned);
-    if (nirivMatch) {
-      toUpsert.push({
-        commodity_id: dbEntry.id,
-        market: "kalimati",
-        source_id: nirivSourceId,
-        price_date: priceDate,
-        min_price: nirivMatch.minPrice,
-        max_price: nirivMatch.maxPrice,
-        avg_price: nirivMatch.avgPrice,
-        unit: mapEntry.unit,
-      });
-    }
 
     // 3. Pokhara - AMPIS (Only if successfully scraped)
     const pokharaMatch = pokharaMap.get(cleaned);
