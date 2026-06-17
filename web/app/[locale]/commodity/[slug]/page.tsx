@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { getSeoMetadata } from "@/lib/seo";
+import JsonLd from "@/components/shared/JsonLd";
 import { getCommodityWithChange, getCommodityHistory, getObservationsForDate, getPricesAcrossMarkets } from "@/lib/queries/prices";
 import { formatPrice, formatBSDate } from "@/lib/format";
 import { getProductImageUrl } from "@/lib/commodityDetails";
@@ -98,17 +100,20 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const activeMarket = commodity.market;
   const marketLabel = MARKET_LABELS[activeMarket]?.[locale] || activeMarket;
   
-  if (locale === "ne") {
-    return {
-      title: `${commodity.name_ne} को आजको मूल्य — ${marketLabel}`,
-      description: `${marketLabel} बजारमा आजको ${commodity.name_ne} को थोक मूल्य। दैनिक औसत, न्यूनतम र अधिकतम मूल्य तथा इतिहास।`,
-    };
-  }
-  
-  return {
-    title: `${commodity.name_en} Wholesale Price Today — ${marketLabel}`,
-    description: `Today's wholesale price for ${commodity.name_en} in ${marketLabel} Market. Latest average rate, min, max, and historical chart.`,
-  };
+  const title = locale === "ne"
+    ? `${commodity.name_ne} को आजको मूल्य — ${marketLabel}`
+    : `${commodity.name_en} Wholesale Price Today — ${marketLabel}`;
+
+  const description = locale === "ne"
+    ? `${marketLabel} बजारमा आजको ${commodity.name_ne} को थोक मूल्य। दैनिक औसत, न्यूनतम र अधिकतम मूल्य तथा इतिहास।`
+    : `Today's wholesale price for ${commodity.name_en} in ${marketLabel} Market. Latest average rate, min, max, and historical chart.`;
+
+  return getSeoMetadata({
+    locale,
+    path: `commodity/${params.slug}`,
+    title,
+    description,
+  });
 }
 
 export default async function CommodityDetailPage(props: PageProps) {
@@ -137,9 +142,37 @@ export default async function CommodityDetailPage(props: PageProps) {
   const categoryKey = CATEGORY_KEYS[commodity.category] || commodity.category;
   const categoryLabel = dict.nav[categoryKey as keyof typeof dict.nav] || commodity.category;
   const categoryLink = getCategoryLink(commodity.category, locale);
+  const name = locale === "ne" ? commodity.name_ne : commodity.name_en;
+  const description = locale === "ne"
+    ? `${marketLabel} बजारमा आजको ${commodity.name_ne} को थोक मूल्य। दैनिक औसत: रु ${commodity.avg_price}।`
+    : `Today's wholesale price for ${commodity.name_en} in ${marketLabel} Market. Average: Rs. ${commodity.avg_price}.`;
+
+  const offers: any = {
+    "@type": "AggregateOffer",
+    "priceCurrency": "NPR",
+  };
+  if (commodity.min_price !== null) offers.lowPrice = commodity.min_price;
+  if (commodity.max_price !== null) offers.highPrice = commodity.max_price;
+  if (commodity.avg_price !== null) offers.price = commodity.avg_price;
+  offers.priceUnit = commodity.unit;
+
+  const jsonLdData = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": locale === "ne" ? `${commodity.name_ne} को आजको मूल्य` : `${commodity.name_en} Price Today`,
+    "description": description,
+    "url": `https://krishimulya.com/${locale}/commodity/${slug}`,
+    "mainEntity": {
+      "@type": "Product",
+      "name": name,
+      "offers": offers
+    }
+  };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
+    <>
+      <JsonLd data={jsonLdData} />
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
       
       {/* Breadcrumbs */}
       <nav className="flex items-center gap-1.5 text-xs font-semibold text-soil-800/60" aria-label="Breadcrumb">
@@ -416,5 +449,6 @@ export default async function CommodityDetailPage(props: PageProps) {
 
       </div>
     </div>
+    </>
   );
 }
