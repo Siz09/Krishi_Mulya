@@ -4,7 +4,11 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { Search, X } from "lucide-react";
 
-export default function SearchBar() {
+interface SearchBarProps {
+  placeholder?: string;
+}
+
+export default function SearchBar({ placeholder = "Search..." }: SearchBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -52,7 +56,7 @@ export default function SearchBar() {
         name="search"
         id="search"
         className="w-full pl-10 pr-10 py-2 bg-white border border-leaf-100 rounded-lg text-sm text-soil-800 placeholder-soil-800/40 focus:outline-none focus:border-leaf-600 focus:ring-1 focus:ring-leaf-600 transition-all shadow-sm hover:shadow-interactive"
-        placeholder="Search commodity (e.g. Tomato, गोलभेडा)..."
+        placeholder={placeholder}
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
       />

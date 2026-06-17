@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { toNepaliDigits } from "@/lib/format";
 
 interface PaginationProps {
   totalPages: number;
   currentPage: number;
   totalItems: number;
   itemsPerPage: number;
+  locale?: "en" | "ne";
 }
 
 export default function Pagination({
@@ -16,6 +18,7 @@ export default function Pagination({
   currentPage,
   totalItems,
   itemsPerPage,
+  locale = "en",
 }: PaginationProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -69,13 +72,26 @@ export default function Pagination({
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
+  const prevLabel = locale === "ne" ? "अघिल्लो" : "Prev";
+  const nextLabel = locale === "ne" ? "अर्को" : "Next";
+
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 pb-2 border-t border-leaf-100/60 w-full">
       {/* Page Info */}
       <div className="text-xs sm:text-sm text-soil-800/60 font-medium">
-        Showing <span className="font-bold text-soil-800">{startItem}</span> to{" "}
-        <span className="font-bold text-soil-800">{endItem}</span> of{" "}
-        <span className="font-bold text-soil-800">{totalItems}</span> commodities
+        {locale === "ne" ? (
+          <>
+            देखाउँदै <span className="font-bold text-soil-800">{toNepaliDigits(String(startItem))}</span> देखि{" "}
+            <span className="font-bold text-soil-800">{toNepaliDigits(String(endItem))}</span> सम्म (कुल{" "}
+            <span className="font-bold text-soil-800">{toNepaliDigits(String(totalItems))}</span> मध्ये)
+          </>
+        ) : (
+          <>
+            Showing <span className="font-bold text-soil-800">{startItem}</span> to{" "}
+            <span className="font-bold text-soil-800">{endItem}</span> of{" "}
+            <span className="font-bold text-soil-800">{totalItems}</span> commodities
+          </>
+        )}
       </div>
 
       {/* Pagination Buttons */}
@@ -90,12 +106,12 @@ export default function Pagination({
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-leaf-100 bg-white text-soil-800 hover:text-leaf-700 hover:bg-leaf-50 hover:border-leaf-300 text-xs sm:text-sm font-semibold transition-all shadow-sm"
           >
             <ChevronLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Prev</span>
+            <span className="hidden sm:inline">{prevLabel}</span>
           </Link>
         ) : (
           <span className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-leaf-50 bg-soil-50/50 text-soil-800/30 text-xs sm:text-sm font-semibold cursor-not-allowed">
             <ChevronLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Prev</span>
+            <span className="hidden sm:inline">{prevLabel}</span>
           </span>
         )}
 
@@ -116,6 +132,8 @@ export default function Pagination({
               );
             }
 
+            const displayPage = locale === "ne" ? toNepaliDigits(String(page)) : page;
+
             return (
               <Link
                 key={`page-${page}`}
@@ -126,7 +144,7 @@ export default function Pagination({
                     : "border border-leaf-100 bg-white text-soil-800 hover:bg-leaf-50 hover:text-leaf-700 hover:border-leaf-300"
                 }`}
               >
-                {page}
+                {displayPage}
               </Link>
             );
           })}
@@ -138,12 +156,12 @@ export default function Pagination({
             href={createPageURL(currentPage + 1)}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-leaf-100 bg-white text-soil-800 hover:text-leaf-700 hover:bg-leaf-50 hover:border-leaf-300 text-xs sm:text-sm font-semibold transition-all shadow-sm"
           >
-            <span className="hidden sm:inline">Next</span>
+            <span className="hidden sm:inline">{nextLabel}</span>
             <ChevronRight className="h-4 w-4" />
           </Link>
         ) : (
           <span className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-leaf-50 bg-soil-50/50 text-soil-800/30 text-xs sm:text-sm font-semibold cursor-not-allowed">
-            <span className="hidden sm:inline">Next</span>
+            <span className="hidden sm:inline">{nextLabel}</span>
             <ChevronRight className="h-4 w-4" />
           </span>
         )}

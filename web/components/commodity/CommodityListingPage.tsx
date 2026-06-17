@@ -8,6 +8,7 @@ import PriceTable from "@/components/commodity/PriceTable";
 import PriceCardList from "@/components/commodity/PriceCardList";
 import AlertSignupForm from "@/components/shared/AlertSignupForm";
 import { AlertCircle } from "lucide-react";
+import type { Dictionary } from "@/lib/dictionary";
 
 import CategorySelector from "@/components/shared/CategorySelector";
 import Pagination from "@/components/shared/Pagination";
@@ -30,6 +31,29 @@ const MARKET_PROVINCES: Record<string, { id: string; name: string; markets: stri
   attariya: { id: "karnali_sudurpashchim", name: "Karnali / Sudurpashchim", markets: ["birendranagar", "attariya"] }
 };
 
+const PROVINCE_NAMES: Record<string, Record<"en" | "ne", string>> = {
+  east_madesh: { en: "East / Madhesh", ne: "पूर्व / मधेश" },
+  bagmati: { en: "Bagmati", ne: "बागमती" },
+  gandaki_lumbini: { en: "Gandaki / Lumbini", ne: "गण्डकी / लुम्बिनी" },
+  karnali_sudurpashchim: { en: "Karnali / Sudurpashchim", ne: "कर्णाली / सुदूरपश्चिम" },
+};
+
+const MARKET_LABELS: Record<string, Record<"en" | "ne", string>> = {
+  all: { en: "All Locations", ne: "सबै स्थानहरू" },
+  kalimati: { en: "Kathmandu (Kalimati)", ne: "काठमाडौं (कालीमाटी)" },
+  birtamod: { en: "Birtamod", ne: "विर्तामोड" },
+  dharan: { en: "Dharan", ne: "धरान" },
+  dhalkebar: { en: "Dhalkebar", ne: "ढल्केबर" },
+  kamalamai: { en: "Kamalamai", ne: "कमलामाई" },
+  kawasoti: { en: "Kawasoti", ne: "कावासोती" },
+  pokhara: { en: "Pokhara", ne: "पोखरा" },
+  butwal: { en: "Butwal", ne: "बुटवल" },
+  kohalpur: { en: "Kohalpur", ne: "कोहलपुर" },
+  birendranagar: { en: "Birendranagar", ne: "वीरेन्द्रनगर" },
+  attariya: { en: "Attariya", ne: "अत्तरिया" },
+  lalbandi: { en: "Lalbandi", ne: "लालबन्दी" },
+};
+
 interface CommodityListingPageProps {
   category?:
     | "vegetable"
@@ -46,6 +70,8 @@ interface CommodityListingPageProps {
   title: string;
   sourcePage: string;
   searchParams: Promise<{ q?: string; market?: string; page?: string }>;
+  locale?: "en" | "ne";
+  dict: Dictionary;
 }
 
 export default async function CommodityListingPage({
@@ -53,16 +79,15 @@ export default async function CommodityListingPage({
   title,
   sourcePage,
   searchParams,
+  locale = "en",
+  dict,
 }: CommodityListingPageProps) {
   const resolvedParams = await searchParams;
   const search = resolvedParams.q || "";
   const market = resolvedParams.market || "all";
   const page = Number(resolvedParams.page) || 1;
-  const marketName = market === "all"
-    ? "All Locations"
-    : market === "kalimati"
-      ? "Kalimati"
-      : market.charAt(0).toUpperCase() + market.slice(1);
+  
+  const marketName = MARKET_LABELS[market]?.[locale] || market;
 
   // Fetch filtered latest prices
   const prices = await getLatestPrices({ category, search, market });
@@ -98,6 +123,17 @@ export default async function CommodityListingPage({
     );
   }
 
+  // Build Stale Notice Text
+  const staleNotice = dict.dashboard.notice_stale
+    .replace("{date}", formatBSDate(latestDateStr, locale))
+    .replace("{adDate}", latestDateStr)
+    .replace("{market}", marketName);
+
+  // Build No Data Text
+  const noDataMessage = market === "all"
+    ? dict.dashboard.no_data_any
+    : dict.dashboard.no_data_market.replace("{market}", marketName);
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8">
       
@@ -109,7 +145,7 @@ export default async function CommodityListingPage({
 
         {prices.length === 0 && !search && (
           <div className="bg-soil-50 border border-leaf-100 rounded-xl p-6 text-center text-soil-800/60 shadow-sm">
-            Price data will appear here once the first daily update runs for {market === "all" ? "any location" : `the ${marketName} market`}.
+            {noDataMessage}
           </div>
         )}
 
@@ -117,7 +153,7 @@ export default async function CommodityListingPage({
           <div className="bg-soil-50 border border-leaf-100 rounded-xl p-4 flex items-start gap-3 shadow-sm">
             <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
             <p className="text-sm text-soil-800 font-medium">
-              Notice: Showing prices for {formatBSDate(latestDateStr, "en")} ({latestDateStr}) as today's market prices have not yet been published by {market === "all" ? "all locations" : marketName}.
+              {staleNotice}
             </p>
           </div>
         )}
@@ -127,16 +163,16 @@ export default async function CommodityListingPage({
       <section className="relative z-30 flex flex-col md:flex-row justify-between items-center gap-4 bg-white/50 p-4 rounded-2xl border border-leaf-100/40 backdrop-blur-sm shadow-sm w-full">
         <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
           <Suspense fallback={<div className="h-10 w-full md:w-96 bg-leaf-50/20 rounded-lg animate-pulse" />}>
-            <SearchBar />
+            <SearchBar placeholder={dict.dashboard.search_placeholder} />
           </Suspense>
           <Suspense fallback={<div className="h-10 w-full md:w-60 bg-leaf-50/20 rounded-lg animate-pulse" />}>
-            <MarketSelector />
+            <MarketSelector locale={locale} />
           </Suspense>
         </div>
 
         <div className="w-full md:w-auto flex justify-start md:justify-end">
           <Suspense fallback={<div className="h-10 w-full md:w-56 bg-leaf-50/20 rounded-lg animate-pulse" />}>
-            <CategorySelector currentCategory={category} />
+            <CategorySelector currentCategory={category} locale={locale} dict={dict} />
           </Suspense>
         </div>
       </section>
@@ -144,8 +180,8 @@ export default async function CommodityListingPage({
       {prices.length > 0 ? (
         <>
           {/* Commodity lists (Responsive) */}
-          <PriceCardList prices={paginatedPrices} showMarket={market === "all"} className="md:hidden" />
-          <PriceTable prices={paginatedPrices} showMarket={market === "all"} className="hidden md:block" />
+          <PriceCardList prices={paginatedPrices} showMarket={market === "all"} locale={locale} dict={dict} className="md:hidden" />
+          <PriceTable prices={paginatedPrices} showMarket={market === "all"} locale={locale} dict={dict} className="hidden md:block" />
 
           {/* Pagination Controls */}
           <Pagination
@@ -153,14 +189,15 @@ export default async function CommodityListingPage({
             currentPage={currentPage}
             totalItems={totalItems}
             itemsPerPage={itemsPerPage}
+            locale={locale}
           />
         </>
       ) : (
         search || category ? (
           <div className="bg-soil-50 border border-leaf-100 rounded-xl p-8 text-center text-soil-800/60 shadow-sm flex flex-col items-center justify-center gap-2">
             <AlertCircle className="h-8 w-8 text-soil-800/40" />
-            <p className="font-semibold text-soil-800">No commodities found matching your search.</p>
-            <p className="text-xs text-soil-800/50">Try broadening your search term or selecting a different location/category.</p>
+            <p className="font-semibold text-soil-800">{dict.dashboard.no_results_title}</p>
+            <p className="text-xs text-soil-800/50">{dict.dashboard.no_results_desc}</p>
           </div>
         ) : null
       )}
@@ -171,20 +208,23 @@ export default async function CommodityListingPage({
           <header className="flex flex-col gap-1">
             <h2 className="text-lg font-bold text-soil-800 flex items-center gap-2">
               <span className="flex h-2.5 w-2.5 rounded-full bg-leaf-500 animate-pulse" />
-              Available in other {provinceInfo.name} locations
+              {dict.dashboard.province_fallback_title.replace(
+                "{province}",
+                PROVINCE_NAMES[provinceInfo.id]?.[locale] || provinceInfo.name
+              )}
             </h2>
             <p className="text-xs text-soil-800/60">
-              Prices for this query in neighboring markets within the same province:
+              {dict.dashboard.province_fallback_desc}
             </p>
           </header>
           
-          <PriceCardList prices={provinceFallbackPrices} showMarket={true} className="md:hidden" />
-          <PriceTable prices={provinceFallbackPrices} showMarket={true} className="hidden md:block" />
+          <PriceCardList prices={provinceFallbackPrices} showMarket={true} locale={locale} dict={dict} className="md:hidden" />
+          <PriceTable prices={provinceFallbackPrices} showMarket={true} locale={locale} dict={dict} className="hidden md:block" />
         </section>
       )}
 
       {/* Alert Signup section */}
-      <AlertSignupForm sourcePage={sourcePage} />
+      <AlertSignupForm sourcePage={sourcePage} locale={locale} dict={dict} />
     </div>
   );
 }

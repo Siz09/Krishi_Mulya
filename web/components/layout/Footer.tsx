@@ -1,8 +1,12 @@
-"use client";
-
 import { Sprout } from "lucide-react";
+import type { Dictionary } from "@/lib/dictionary";
 
-export default function Footer() {
+interface FooterProps {
+  locale?: "en" | "ne";
+  dict: Dictionary;
+}
+
+export default function Footer({ locale = "en", dict }: FooterProps) {
   const currentYear = new Date().getFullYear();
 
   return (
@@ -18,7 +22,7 @@ export default function Footer() {
             </span>
           </div>
           <p className="text-xs text-soil-800/60 max-w-sm">
-            Empowering Nepalese farmers, traders, and consumers with daily transparent pricing data from wholesale markets across Nepal.
+            {dict.footer.desc}
           </p>
           <p className="text-[10px] text-soil-800/40">
             &copy; {currentYear} Krishi Mulya. All rights reserved.
@@ -28,25 +32,16 @@ export default function Footer() {
         {/* Data Attribution & Scraper Status */}
         <div className="flex flex-col gap-4 text-xs text-soil-800/70 max-w-md">
           <div>
-            <span className="font-bold text-soil-800 block mb-1">Data Source Attribution</span>
+            <span className="font-bold text-soil-800 block mb-1">{dict.footer.source_attribution}</span>
             <span className="text-soil-800/60">
-              Pricing details sourced directly from the official daily publications of the{" "}
-              <a
-                href="https://kalimatimarket.gov.np"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-leaf-600 hover:text-leaf-500 font-semibold underline"
-              >
-                Kalimati Fruits & Vegetable Market Development Board
-              </a>
-              , Government of Nepal.
+              {dict.footer.source_desc}
             </span>
           </div>
           <div className="flex items-center gap-2 text-[10px]">
-            <span className="text-soil-800/40">Scraper Update Status:</span>
+            <span className="text-soil-800/40">{dict.footer.scraper_status}</span>
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 border border-emerald-200">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              Online (Daily 00:45 UTC)
+              {dict.footer.scraper_online}
             </span>
           </div>
         </div>

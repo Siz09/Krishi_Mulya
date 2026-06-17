@@ -3,10 +3,11 @@ import { formatChange } from "@/lib/format";
 
 interface PriceChangeBadgeProps {
   pct: number | null | undefined;
+  locale?: "en" | "ne";
 }
 
-export default function PriceChangeBadge({ pct }: PriceChangeBadgeProps) {
-  const { text, direction } = formatChange(pct);
+export default function PriceChangeBadge({ pct, locale = "en" }: PriceChangeBadgeProps) {
+  const { text, direction } = formatChange(pct, locale);
 
   if (direction === "up") {
     return (

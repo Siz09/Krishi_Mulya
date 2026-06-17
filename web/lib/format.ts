@@ -7,14 +7,19 @@ const UNIT_NE: Record<string, string> = {
   piece: "गोटा",
 };
 
+const NEPALI_DIGITS = ["०", "१", "२", "३", "४", "५", "६", "७", "८", "९"];
+
+export function toNepaliDigits(str: string): string {
+  return str.replace(/\d/g, (d) => NEPALI_DIGITS[parseInt(d, 10)]);
+}
+
 /**
  * Formats a commodity price with currency prefix and unit suffix.
- * Numeric values always use Arabic numerals (0-9) in both locales —
- * these are "scan for magnitude" values where rapid recognition matters.
+ * Converts numeric digits to Devanagari digits when locale is "ne".
  *
  * @example
  *   formatPrice(125, "kg", "en")  → "Rs. 125/kg"
- *   formatPrice(125, "kg", "ne")  → "रु 125/केजी"
+ *   formatPrice(125, "kg", "ne")  → "रु १२५/केजी"
  *   formatPrice(null, "kg", "en") → "—"
  */
 export function formatPrice(
@@ -27,49 +32,49 @@ export function formatPrice(
 
   const rounded = Math.round(value * 100) / 100;
   const display = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+  const formattedDisplay = locale === "ne" ? toNepaliDigits(display) : display;
 
   const prefix = locale === "ne" ? "रु" : "Rs.";
 
   if (opts?.priceOnly) {
-    return `${prefix} ${display}`;
+    return `${prefix} ${formattedDisplay}`;
   }
 
   const unitLabel = locale === "ne" ? (UNIT_NE[unit.toLowerCase()] ?? unit) : unit;
-  return `${prefix} ${display}/${unitLabel}`;
+  return `${prefix} ${formattedDisplay}/${unitLabel}`;
 }
 
 /**
  * Formats a percentage change value.
- * Always Arabic numerals regardless of locale (same rule as prices above).
+ * Converts numeric digits to Devanagari digits when locale is "ne".
  *
  * @example
- *   formatChange(3.2)  → { text: "+3.2%", direction: "up" }
- *   formatChange(-1.8) → { text: "-1.8%", direction: "down" }
- *   formatChange(0)    → { text: "0%",    direction: "none" }
- *   formatChange(null) → { text: "—",     direction: "none" }
+ *   formatChange(3.2, "en")  → { text: "+3.2%", direction: "up" }
+ *   formatChange(-1.8, "ne") → { text: "-१.८%", direction: "down" }
+ *   formatChange(0, "en")    → { text: "0%",    direction: "none" }
+ *   formatChange(null, "en") → { text: "—",     direction: "none" }
  */
-export function formatChange(pct: number | null | undefined): {
+export function formatChange(
+  pct: number | null | undefined,
+  locale?: "en" | "ne"
+): {
   text: string;
   direction: "up" | "down" | "none";
 } {
   if (pct === null || pct === undefined) return { text: "—", direction: "none" };
-  if (pct > 0) return { text: `+${pct}%`, direction: "up" };
-  if (pct < 0) return { text: `${pct}%`, direction: "down" };
-  return { text: "0%", direction: "none" };
-}
+  const absPct = Math.abs(pct);
+  const rounded = Math.round(absPct * 100) / 100;
+  const display = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+  const formattedPct = locale === "ne" ? toNepaliDigits(display) : display;
 
-// Devanagari digit map for BS date conversion
-const NEPALI_DIGITS = ["०", "१", "२", "३", "४", "५", "६", "७", "८", "९"];
-
-function toNepaliDigits(str: string): string {
-  return str.replace(/\d/g, (d) => NEPALI_DIGITS[parseInt(d, 10)]);
+  if (pct > 0) return { text: `+${formattedPct}%`, direction: "up" };
+  if (pct < 0) return { text: `-${formattedPct}%`, direction: "down" };
+  return { text: `${formattedPct}%`, direction: "none" };
 }
 
 /**
  * Converts a Gregorian (AD) date to Bikram Sambat (BS) and formats it.
- * Bikram Sambat dates are the one exception to the "Arabic-numerals only"
- * rule — they are read as a whole label so Devanagari digits are appropriate
- * for the Nepali locale.
+ * Bikram Sambat dates use Devanagari digits for the Nepali locale.
  *
  * @example
  *   formatBSDate("2026-06-16", "en") → "2083-03-02 BS"

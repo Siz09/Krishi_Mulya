@@ -4,23 +4,43 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTransition, useState, useRef, useEffect } from "react";
 import { MapPin, ChevronDown, Check } from "lucide-react";
 
+interface MarketSelectorProps {
+  locale?: "en" | "ne";
+}
+
+const MARKET_LABELS: Record<string, Record<"en" | "ne", string>> = {
+  all: { en: "All Locations", ne: "सबै स्थानहरू" },
+  kalimati: { en: "Kathmandu (Kalimati)", ne: "काठमाडौं (कालीमाटी)" },
+  birtamod: { en: "Birtamod", ne: "विर्तामोड" },
+  dharan: { en: "Dharan", ne: "धरान" },
+  dhalkebar: { en: "Dhalkebar", ne: "ढल्केबर" },
+  kamalamai: { en: "Kamalamai", ne: "कमलामाई" },
+  kawasoti: { en: "Kawasoti", ne: "कावासोती" },
+  pokhara: { en: "Pokhara", ne: "पोखरा" },
+  butwal: { en: "Butwal", ne: "बुटवल" },
+  kohalpur: { en: "Kohalpur", ne: "कोहलपुर" },
+  birendranagar: { en: "Birendranagar", ne: "वीरेन्द्रनगर" },
+  attariya: { en: "Attariya", ne: "अत्तरिया" },
+  lalbandi: { en: "Lalbandi", ne: "लालबन्दी" },
+};
+
 const MARKETS = [
-  { id: "all", label: "All Locations" },
-  { id: "kalimati", label: "Kathmandu (Kalimati)" },
-  { id: "birtamod", label: "Birtamod" },
-  { id: "dharan", label: "Dharan" },
-  { id: "dhalkebar", label: "Dhalkebar" },
-  { id: "kamalamai", label: "Kamalamai" },
-  { id: "kawasoti", label: "Kawasoti" },
-  { id: "pokhara", label: "Pokhara" },
-  { id: "butwal", label: "Butwal" },
-  { id: "kohalpur", label: "Kohalpur" },
-  { id: "birendranagar", label: "Birendranagar" },
-  { id: "attariya", label: "Attariya" },
-  { id: "lalbandi", label: "Lalbandi" },
+  { id: "all" },
+  { id: "kalimati" },
+  { id: "birtamod" },
+  { id: "dharan" },
+  { id: "dhalkebar" },
+  { id: "kamalamai" },
+  { id: "kawasoti" },
+  { id: "pokhara" },
+  { id: "butwal" },
+  { id: "kohalpur" },
+  { id: "birendranagar" },
+  { id: "attariya" },
+  { id: "lalbandi" },
 ];
 
-export default function MarketSelector() {
+export default function MarketSelector({ locale = "en" }: MarketSelectorProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -29,7 +49,7 @@ export default function MarketSelector() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const currentMarket = searchParams.get("market") || "all";
-  const selectedMarket = MARKETS.find((m) => m.id === currentMarket) || MARKETS[0];
+  const selectedMarketName = MARKET_LABELS[currentMarket]?.[locale] || currentMarket;
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -66,7 +86,7 @@ export default function MarketSelector() {
       >
         <span className="flex items-center gap-2 overflow-hidden">
           <MapPin className="h-4 w-4 text-leaf-600 shrink-0" />
-          <span className="truncate">{selectedMarket.label}</span>
+          <span className="truncate">{selectedMarketName}</span>
         </span>
         <span className="flex items-center gap-1">
           {isPending && (
@@ -80,6 +100,7 @@ export default function MarketSelector() {
         <div className="absolute left-0 right-0 mt-1.5 max-h-60 overflow-y-auto bg-white border border-leaf-100 rounded-xl shadow-lg z-50 py-1 scrollbar-thin">
           {MARKETS.map((m) => {
             const active = currentMarket === m.id;
+            const marketLabel = MARKET_LABELS[m.id]?.[locale] || m.id;
             return (
               <button
                 key={m.id}
@@ -88,7 +109,7 @@ export default function MarketSelector() {
                   active ? "text-leaf-700 bg-leaf-50/50" : "text-soil-750"
                 }`}
               >
-                <span>{m.label}</span>
+                <span>{marketLabel}</span>
                 {active && <Check className="h-3.5 w-3.5 text-leaf-600 shrink-0" />}
               </button>
             );

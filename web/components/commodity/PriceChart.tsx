@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import type { DailyPrice } from "@/lib/supabase";
 import { TrendingUp } from "lucide-react";
+import { toNepaliDigits } from "@/lib/format";
 
 interface PriceChartProps {
   history: DailyPrice[];
@@ -30,9 +31,13 @@ export default function PriceChart({ history, locale = "en" }: PriceChartProps) 
     return (
       <div className="h-80 w-full flex flex-col items-center justify-center border border-leaf-100 bg-soil-50/20 rounded-xl p-8 text-center text-sm text-soil-800/60">
         <TrendingUp className="h-9 w-9 text-soil-800/40 mb-2" />
-        <p className="font-semibold text-soil-800">No History Available Yet</p>
+        <p className="font-semibold text-soil-800">
+          {locale === "ne" ? "इतिहास उपलब्ध छैन" : "No History Available Yet"}
+        </p>
         <p className="text-xs text-soil-800/60 mt-1 max-w-xs">
-          Price history will appear here as data accumulates — check back tomorrow.
+          {locale === "ne"
+            ? "डाटा संकलन भएपछि मूल्य इतिहास यहाँ देखा पर्नेछ — भोलि पुनः प्रयास गर्नुहोस्।"
+            : "Price history will appear here as data accumulates — check back tomorrow."}
         </p>
       </div>
     );
@@ -68,12 +73,16 @@ export default function PriceChart({ history, locale = "en" }: PriceChartProps) 
             tick={{ fill: "#3a2a1d", fontSize: 11 }}
             axisLine={false}
             tickLine={false}
+            tickFormatter={(val) => (locale === "ne" ? toNepaliDigits(String(val)) : String(val))}
           />
           <YAxis
             tick={{ fill: "#3a2a1d", fontSize: 11 }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(val) => `${prefix} ${val}`}
+            tickFormatter={(val) => {
+              const formattedVal = locale === "ne" ? toNepaliDigits(String(val)) : String(val);
+              return `${prefix} ${formattedVal}`;
+            }}
           />
           <Tooltip
             contentStyle={{
@@ -85,7 +94,8 @@ export default function PriceChart({ history, locale = "en" }: PriceChartProps) 
             labelClassName="font-bold text-soil-800 text-xs"
             formatter={(value: any, name: any) => {
               const label = labelMap[name] || name;
-              return [`${prefix} ${value}`, label];
+              const formattedVal = locale === "ne" ? toNepaliDigits(String(value)) : String(value);
+              return [`${prefix} ${formattedVal}`, label];
             }}
           />
           <Legend

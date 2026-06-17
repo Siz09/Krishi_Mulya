@@ -3,17 +3,20 @@
 import { useState, useTransition } from "react";
 import { submitAlertInterest } from "@/lib/actions/alerts";
 import { Bell, AlertCircle, CheckCircle2 } from "lucide-react";
+import type { Dictionary } from "@/lib/dictionary";
 
 interface AlertSignupFormProps {
   sourcePage: string;
   locale?: "en" | "ne";
   compact?: boolean;
+  dict: Dictionary;
 }
 
 export default function AlertSignupForm({
   sourcePage,
   locale = "en",
   compact = false,
+  dict,
 }: AlertSignupFormProps) {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -26,7 +29,7 @@ export default function AlertSignupForm({
 
     const emailTrimmed = email.trim();
     if (!emailTrimmed) {
-      setErrorMessage("Please enter a contact address.");
+      setErrorMessage(dict.alerts.error_empty_email);
       return;
     }
 
@@ -36,7 +39,14 @@ export default function AlertSignupForm({
         setIsSubmitted(true);
         setEmail("");
       } else {
-        setErrorMessage(res.error || "An error occurred. Please try again.");
+        const errKey = res.error;
+        let msg = dict.alerts.error_server;
+        if (errKey === "Please enter a valid email address.") {
+          msg = dict.alerts.error_invalid_email;
+        } else if (errKey === "Database error. Please try again.") {
+          msg = dict.alerts.error_db;
+        }
+        setErrorMessage(msg);
       }
     });
   };
@@ -45,9 +55,9 @@ export default function AlertSignupForm({
     return (
       <div className={`bg-leaf-50 border border-leaf-100 rounded-xl p-8 flex flex-col items-center justify-center text-center shadow-sm w-full`}>
         <CheckCircle2 className="h-10 w-10 text-leaf-600 mb-3" />
-        <h3 className="font-bold text-soil-800 text-lg">Subscription Active!</h3>
+        <h3 className="font-bold text-soil-800 text-lg">{dict.alerts.success}</h3>
         <p className="text-sm text-soil-800/70 mt-1 max-w-sm">
-          Thank you! We'll notify you as soon as daily SMS and email alert delivery goes live.
+          {dict.alerts.success_desc}
         </p>
       </div>
     );
@@ -63,19 +73,19 @@ export default function AlertSignupForm({
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-3">
             <Bell className="h-5 w-5 fill-white/20" />
-            <h3 className="font-bold text-base">Price Alerts</h3>
+            <h3 className="font-bold text-base">{dict.alerts.title_compact}</h3>
           </div>
           <p className="text-xs text-white/90 mb-4 leading-relaxed">
-            Notify me immediately when the daily price of this commodity changes significantly.
+            {dict.alerts.desc_compact}
           </p>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider mb-1 text-white/80">
-                Email Address
+                {dict.alerts.email_label}
               </label>
               <input
                 type="email"
-                placeholder="email@example.com"
+                placeholder={dict.alerts.email_placeholder_compact}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isPending}
@@ -87,7 +97,7 @@ export default function AlertSignupForm({
               disabled={isPending}
               className="w-full bg-white text-leaf-700 font-bold py-2.5 rounded-lg text-xs hover:bg-leaf-50 transition-colors shadow-sm disabled:opacity-70 flex items-center justify-center gap-1 cursor-pointer"
             >
-              {isPending ? "Subscribing..." : "Subscribe"}
+              {isPending ? dict.alerts.subscribing : dict.alerts.submit}
             </button>
           </form>
 
@@ -106,16 +116,16 @@ export default function AlertSignupForm({
   return (
     <section className="bg-leaf-50 border border-leaf-100 rounded-xl p-8 flex flex-col md:flex-row items-center gap-6 shadow-sm w-full">
       <div className="flex-1">
-        <h2 className="text-xl font-bold text-leaf-700 mb-1">Get Price Alerts</h2>
+        <h2 className="text-xl font-bold text-leaf-700 mb-1">{dict.alerts.title}</h2>
         <p className="text-sm text-soil-800/70">
-          Stay updated with daily wholesale market prices for your essential agricultural commodities via Email.
+          {dict.alerts.desc}
         </p>
       </div>
       <div className="w-full md:w-auto">
         <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
           <input
             type="email"
-            placeholder="Enter your email"
+            placeholder={dict.alerts.email_placeholder}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={isPending}
@@ -126,7 +136,7 @@ export default function AlertSignupForm({
             disabled={isPending}
             className="px-6 py-2 bg-leaf-600 text-white rounded-lg text-sm font-semibold hover:bg-leaf-700 transition-colors shadow-interactive whitespace-nowrap cursor-pointer disabled:opacity-70 flex items-center justify-center"
           >
-            {isPending ? "Subscribing..." : "Subscribe"}
+            {isPending ? dict.alerts.subscribing : dict.alerts.submit}
           </button>
         </form>
 
