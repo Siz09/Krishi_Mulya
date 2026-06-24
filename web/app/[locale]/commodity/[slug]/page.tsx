@@ -4,12 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { getSeoMetadata } from "@/lib/seo";
 import JsonLd from "@/components/shared/JsonLd";
-import { getCommodityWithChange, getCommodityHistory, getObservationsForDate, getPricesAcrossMarkets } from "@/lib/queries/prices";
+import { getCommodityWithChange, getCommodityHistory, getObservationsForDate, getPricesAcrossMarkets, getRelatedCommodities } from "@/lib/queries/prices";
 import { formatPrice, formatBSDate } from "@/lib/format";
 import { getProductImageUrl } from "@/lib/commodityDetails";
 import PriceChangeBadge from "@/components/commodity/PriceChangeBadge";
 import PriceChart from "@/components/commodity/PriceChart";
 import AlertSignupForm from "@/components/shared/AlertSignupForm";
+import RelatedCommodities from "@/components/commodity/RelatedCommodities";
 import { getDictionary } from "@/lib/dictionary";
 import { ChevronRight, Home, HelpCircle, MapPin } from "lucide-react";
 
@@ -138,6 +139,7 @@ export default async function CommodityDetailPage(props: PageProps) {
     ? await getObservationsForDate(commodity.commodity_id, activeMarket, commodity.price_date)
     : [];
   const allLocationsPrices = await getPricesAcrossMarkets(slug);
+  const relatedCommodities = await getRelatedCommodities(slug, commodity.category, activeMarket, 6);
 
   const categoryKey = CATEGORY_KEYS[commodity.category] || commodity.category;
   const categoryLabel = dict.nav[categoryKey as keyof typeof dict.nav] || commodity.category;
@@ -221,8 +223,16 @@ export default async function CommodityDetailPage(props: PageProps) {
           {/* Stats Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
             
-            <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">{dict.commodity.avg}</span>
+          <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">{dict.commodity.avg}</span>
+                <div className="group/avgcard relative">
+                  <svg className="text-soil-800/30 cursor-help" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                  <span className="absolute right-0 top-full mt-1 w-56 text-xs font-normal bg-soil-800 text-white rounded-lg px-3 py-2 shadow-lg opacity-0 group-hover/avgcard:opacity-100 pointer-events-none transition-opacity z-50">
+                    {dict.commodity.avg_tooltip}
+                  </span>
+                </div>
+              </div>
               <div className="text-xl sm:text-2xl font-black text-leaf-700 mt-1">
                 {formatPrice(commodity.avg_price, commodity.unit, locale, { priceOnly: true })}
               </div>
@@ -231,8 +241,16 @@ export default async function CommodityDetailPage(props: PageProps) {
               </span>
             </div>
 
-            <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">{dict.commodity.min}</span>
+          <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">{dict.commodity.min}</span>
+                <div className="group/mincard relative">
+                  <svg className="text-soil-800/30 cursor-help" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                  <span className="absolute right-0 top-full mt-1 w-56 text-xs font-normal bg-soil-800 text-white rounded-lg px-3 py-2 shadow-lg opacity-0 group-hover/mincard:opacity-100 pointer-events-none transition-opacity z-50">
+                    {dict.commodity.min_tooltip}
+                  </span>
+                </div>
+              </div>
               <div className="text-lg sm:text-xl font-extrabold text-blue-600 mt-1">
                 {formatPrice(commodity.min_price, commodity.unit, locale, { priceOnly: true })}
               </div>
@@ -241,8 +259,16 @@ export default async function CommodityDetailPage(props: PageProps) {
               </span>
             </div>
 
-            <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">{dict.commodity.max}</span>
+          <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">{dict.commodity.max}</span>
+                <div className="group/maxcard relative">
+                  <svg className="text-soil-800/30 cursor-help" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                  <span className="absolute right-0 top-full mt-1 w-56 text-xs font-normal bg-soil-800 text-white rounded-lg px-3 py-2 shadow-lg opacity-0 group-hover/maxcard:opacity-100 pointer-events-none transition-opacity z-50">
+                    {dict.commodity.max_tooltip}
+                  </span>
+                </div>
+              </div>
               <div className="text-lg sm:text-xl font-extrabold text-amber-600 mt-1">
                 {formatPrice(commodity.max_price, commodity.unit, locale, { priceOnly: true })}
               </div>
@@ -441,6 +467,14 @@ export default async function CommodityDetailPage(props: PageProps) {
               </div>
             </div>
           </div>
+
+          {/* Related Commodities Widget */}
+          <RelatedCommodities
+            commodities={relatedCommodities}
+            locale={locale}
+            dict={dict}
+            market={activeMarket}
+          />
 
           {/* Alert Form Widget */}
           <AlertSignupForm compact={true} sourcePage={`commodity/${slug}`} locale={locale} dict={dict} />

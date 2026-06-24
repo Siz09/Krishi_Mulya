@@ -30,9 +30,12 @@
   },
   "commodity": {
     "back": "Back to",
-    "min": "Min",
-    "max": "Max",
-    "avg": "Avg",
+    "min": "Lowest Price",
+    "max": "Highest Price",
+    "avg": "Average Price",
+    "min_tooltip": "The lowest individual wholesale trade recorded today. Some buyers may negotiate below this.",
+    "max_tooltip": "The highest individual wholesale trade recorded today. Premium or scarce grades may trade near this.",
+    "avg_tooltip": "The average (mean) of all wholesale trades recorded today. This is the most representative price for planning purchases.",
     "unit": "Unit",
     "daily_avg": "Daily Average",
     "price_range": "Daily Range",
@@ -44,6 +47,18 @@
     "stats_title": "Today's Market Status",
     "date": "Date",
     "market": "Market"
+  },
+  "top_movers": {
+    "title": "Today's Market Movers",
+    "subtitle": "Biggest price changes from yesterday",
+    "gainers": "Top Gainers",
+    "losers": "Top Drops",
+    "no_data": "Price movement data will appear here once historical data accumulates.",
+    "from_yesterday": "vs yesterday"
+  },
+  "related": {
+    "title": "More in this Category",
+    "subtitle": "Other commodities you might want to check"
   },
   "alerts": {
     "title": "Get Price Alerts",

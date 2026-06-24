@@ -1,11 +1,12 @@
 import { Suspense } from "react";
-import { getLatestPrices } from "@/lib/queries/prices";
+import { getLatestPrices, getTopMovers } from "@/lib/queries/prices";
 import type { LatestPriceWithChange } from "@/lib/supabase";
 import { formatBSDate } from "@/lib/format";
 import SearchBar from "@/components/shared/SearchBar";
 import MarketSelector from "@/components/shared/MarketSelector";
 import PriceTable from "@/components/commodity/PriceTable";
 import PriceCardList from "@/components/commodity/PriceCardList";
+import TopMovers from "@/components/commodity/TopMovers";
 import AlertSignupForm from "@/components/shared/AlertSignupForm";
 import { AlertCircle } from "lucide-react";
 import type { Dictionary } from "@/lib/dictionary";
@@ -92,6 +93,11 @@ export default async function CommodityListingPage({
   // Fetch filtered latest prices
   const prices = await getLatestPrices({ category, search, market });
 
+  // Top movers (only on the main dashboard when no category filter is active and no search)
+  const { gainers, losers } = (!category && !search)
+    ? await getTopMovers({ market: market === "all" ? "kalimati" : market, count: 3 })
+    : { gainers: [], losers: [] };
+
   // Determine if data is stale compared to today (UTC date)
   let latestDateStr = "";
   if (prices.length > 0) {
@@ -158,6 +164,17 @@ export default async function CommodityListingPage({
           </div>
         )}
       </header>
+
+      {/* Top Movers Widget */}
+      {gainers.length > 0 || losers.length > 0 ? (
+        <TopMovers
+          gainers={gainers}
+          losers={losers}
+          locale={locale}
+          dict={dict}
+          market={market === "all" ? "kalimati" : market}
+        />
+      ) : null}
 
       {/* Search, Market Selector and Category filters */}
       <section className="relative z-30 flex flex-col md:flex-row justify-between items-center gap-4 bg-white/50 p-4 rounded-2xl border border-leaf-100/40 backdrop-blur-sm shadow-sm w-full">

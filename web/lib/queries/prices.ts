@@ -187,3 +187,70 @@ export async function getPricesAcrossMarkets(
 
   return (data as LatestPriceWithChange[]) ?? [];
 }
+
+/**
+ * Top daily price movers — biggest gainers and losers by change_1d_pct.
+ * Only includes commodities where change_1d_pct is not null (i.e. history exists).
+ * Defaults to kalimati market for the dashboard view.
+ */
+export async function getTopMovers(
+  opts?: { market?: string; count?: number }
+): Promise<{ gainers: LatestPriceWithChange[]; losers: LatestPriceWithChange[] }> {
+  const market = opts?.market || "kalimati";
+  const count = opts?.count ?? 3;
+
+  const { data, error } = await supabase
+    .from("latest_prices_with_changes")
+    .select("*")
+    .eq("market", market)
+    .not("change_1d_pct", "is", null);
+
+  if (error) {
+    console.error("[getTopMovers]", error.message);
+    return { gainers: [], losers: [] };
+  }
+
+  const all = (data as LatestPriceWithChange[]) ?? [];
+
+  const sorted = [...all].sort(
+    (a, b) => (b.change_1d_pct ?? 0) - (a.change_1d_pct ?? 0)
+  );
+
+  const gainers = sorted
+    .filter((p) => (p.change_1d_pct ?? 0) > 0)
+    .slice(0, count);
+
+  const losers = [...sorted]
+    .filter((p) => (p.change_1d_pct ?? 0) < 0)
+    .slice(-count)
+    .reverse();
+
+  return { gainers, losers };
+}
+
+/**
+ * Related commodities in the same category (excluding the current slug).
+ * Used for the "More in this Category" sidebar widget on the commodity detail page.
+ */
+export async function getRelatedCommodities(
+  slug: string,
+  category: string,
+  market: string = "kalimati",
+  limit: number = 6
+): Promise<LatestPriceWithChange[]> {
+  const { data, error } = await supabase
+    .from("latest_prices_with_changes")
+    .select("*")
+    .eq("category", category)
+    .eq("market", market)
+    .neq("slug", slug)
+    .order("name_en", { ascending: true })
+    .limit(limit);
+
+  if (error) {
+    console.error(`[getRelatedCommodities] slug=${slug} category=${category}`, error.message);
+    return [];
+  }
+
+  return (data as LatestPriceWithChange[]) ?? [];
+}
