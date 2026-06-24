@@ -41,6 +41,7 @@ const CATEGORY_KEYS: Record<string, string> = {
   meat: "meat",
   dairy: "dairy",
   other: "other_grains",
+  staple: "staples",
 };
 
 export default function PriceTable({
@@ -50,6 +51,8 @@ export default function PriceTable({
   className = "",
   showMarket = false,
 }: PriceTableProps) {
+  const hasMonthly = prices.some((p) => p.price_frequency === "monthly");
+  
   return (
     <div className={`overflow-hidden rounded-xl border border-leaf-100 bg-white shadow-sm ${className}`}>
       <table className="w-full text-left border-collapse">
@@ -91,7 +94,11 @@ export default function PriceTable({
                 </span>
               </span>
             </th>
-            <th className="p-4 text-center">{dict.commodity.change_1d}</th>
+            <th className="p-4 text-center">
+              {hasMonthly
+                ? (locale === "ne" ? "परिवर्तन" : "Change")
+                : dict.commodity.change_1d}
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-leaf-100 text-sm">
@@ -107,6 +114,7 @@ export default function PriceTable({
               const categoryKey = CATEGORY_KEYS[price.category] || price.category;
               const categoryLabel = dict.nav[categoryKey as keyof typeof dict.nav] || price.category;
               const marketName = MARKET_LABELS[price.market]?.[locale] || price.market;
+              const isMonthly = price.price_frequency === "monthly";
               
               return (
                 <tr
@@ -133,8 +141,19 @@ export default function PriceTable({
                         >
                           {locale === "ne" ? price.name_ne : price.name_en}
                         </Link>
-                        <div className="text-xs text-soil-800/50 font-devanagari font-medium mt-0.5 relative z-20 pointer-events-none">
-                          {locale === "ne" ? price.name_en : price.name_ne}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5 relative z-20 pointer-events-none">
+                          <span className="text-xs text-soil-800/50 font-devanagari font-medium">
+                            {locale === "ne" ? price.name_en : price.name_ne}
+                          </span>
+                          <span className={`inline-flex items-center px-1 py-0.2 rounded text-[8px] font-semibold leading-none border uppercase tracking-wider ${
+                            isMonthly
+                              ? "bg-amber-50 text-amber-700 border-amber-200/50"
+                              : "bg-leaf-50 text-leaf-700 border-leaf-100"
+                          }`}>
+                            {isMonthly 
+                              ? (dict.data_freshness?.monthly_retail || "Monthly Retail") 
+                              : (dict.data_freshness?.daily_wholesale || "Daily Wholesale")}
+                          </span>
                         </div>
                       </div>
                     </div>

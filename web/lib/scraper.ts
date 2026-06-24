@@ -1,4 +1,4 @@
-// Single source of truth for all Kalimati scraping logic.
+// Single source of truth for all scraping logic.
 // Imported by:
 //   - web/app/api/cron/route.ts   (Vercel Cron trigger)
 //   - web/scripts/scrape.ts       (manual CLI)
@@ -32,6 +32,7 @@ export type ScrapeResult = {
   date: string;               // ISO date "YYYY-MM-DD" stored in daily_prices
   matchedCount: number;
   unmatched: { raw: string; cleaned: string }[];
+  wfpCount?: number;          // WFP rows imported this run
   error?: string;
 };
 
@@ -57,11 +58,6 @@ export function devanagariToNumber(raw: string): number | null {
 }
 
 // ─── Commodity name normalisation ────────────────────────────────────────────
-// The table contains unit suffixes embedded in the name column on some rows,
-// but based on live inspection the table structure is:
-//   col 0: commodity name (Nepali)  col 1: unit  col 2: min  col 3: max  col 4: avg
-// This function strips any trailing parenthetical unit suffix just in case.
-
 export function normaliseCommodityName(raw: string): string {
   return raw
     .replace(/\s*\(के\.जी\.\)\s*$/u, "")
@@ -145,12 +141,10 @@ async function fetchAmpisDateIds(): Promise<{ yearId: string; monthId: string }>
     });
     const $ = cheerio.load(res.data);
 
-    // Extract selected or first year option
     const yearId = $("#edit-field-market-rate-year-target-id-entityreference-filter option[selected]").attr("value") || 
                    $("#edit-field-market-rate-year-target-id-entityreference-filter option").eq(1).attr("value") || 
                    "1614822"; // 2083 default
     
-    // Extract date text to find current month
     let dateText = "";
     $("p, div, span").each((_, el) => {
       const txt = $(el).text().trim();
@@ -227,16 +221,129 @@ async function fetchAmpisPriceTable(marketId: string, yearId: string, monthId: s
   }
 }
 
+// ─── WFP / HDX Scraper ───────────────────────────────────────────────────────
+// Downloads the WFP Nepal food prices CSV from HDX (CC BY-IGO licence).
+// Only processes rows matching the current month (most recent data).
+// Stores as price_frequency = 'monthly'.
+
+const WFP_CSV_URL =
+  "https://data.humdata.org/dataset/0e8b1b84-8e55-4aec-bc45-0c7d2c92d32e/resource/10bae3d7-82bf-4caf-a216-5fb4a8ff6e43/download/wfp_food_prices_npl.csv";
+
+// Maps WFP commodity names (English) → our slugs
+const WFP_COMMODITY_MAP: Record<string, string> = {
+  "Rice (coarse)": "rice-coarse",
+  "Rice (medium quality)": "rice-coarse",   // map to same slug
+  "Wheat flour": "wheat-flour",
+  "Lentils (red)": "lentils-red",
+  "Lentils (yellow)": "lentils-red",        // map to same slug
+  "Cooking oil (vegetable)": "cooking-oil",
+  "Oil (vegetable)": "cooking-oil",
+  "Sugar": "sugar",
+  "Salt (iodized)": "salt",
+  "Salt": "salt",
+};
+
+// Maps WFP market names → our market slugs
+// We use -retail suffix to distinguish from AMPIS wholesale markets
+const WFP_MARKET_MAP: Record<string, string> = {
+  "Kathmandu": "kathmandu-retail",
+  "Pokhara":   "pokhara-retail",
+  "Dhankuta":  "dhankuta-retail",
+  "Banke":     "banke-retail",
+  "Surkhet":   "surkhet-retail",
+  "Kailali":   "kailali-retail",
+  "Jumla":     "jumla-retail",
+  "Dhanusha":  "dhanusha-retail",
+  "Rupandehi": "rupandehi-retail",
+  "Ilam":      "ilam-retail",
+  "Jhapa":     "jhapa-retail",
+  "Tansen":    "tansen-retail",
+  "Rolpa":     "rolpa-retail",
+  "Achham":    "achham-retail",
+};
+
+type WfpRow = {
+  slug: string;           // our commodity slug
+  market: string;         // our market slug
+  price_date: string;     // "YYYY-MM-DD" (WFP uses the 15th of the month)
+  avg_price: number | null;
+  unit: string;
+};
+
+/**
+ * Download the WFP CSV and extract rows for a given yearMonth (format: "YYYY-MM").
+ * If yearMonth is not provided, uses the current calendar month.
+ */
+export async function fetchWfpPrices(
+  opts?: { yearMonth?: string }
+): Promise<WfpRow[]> {
+  const target = opts?.yearMonth ?? new Date().toISOString().slice(0, 7); // "YYYY-MM"
+
+  let csvText: string;
+  try {
+    const res = await axios.get(WFP_CSV_URL, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; KrishiMulyaBot/1.0; +https://krishimulya.com)",
+      },
+      timeout: 30000,
+      responseType: "text",
+    });
+    csvText = res.data as string;
+  } catch (err) {
+    console.error("[scraper/wfp] Failed to download WFP CSV:", err);
+    return [];
+  }
+
+  const lines = csvText.split("\n");
+  // Header: date,admin1,admin2,market,market_id,latitude,longitude,category,commodity,commodity_id,unit,priceflag,pricetype,currency,price,usdprice
+  const results: WfpRow[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cols = line.split(",");
+    if (cols.length < 15) continue;
+
+    const [dateStr, , , marketName, , , , , commodityName, , unitStr, , priceType, currency, priceStr] = cols;
+
+    if (!dateStr.startsWith(target)) continue;      // only current month
+    if (priceType !== "Retail") continue;            // WFP has Retail + Wholesale; we want Retail
+    if (currency !== "NPR") continue;                // NPR only
+
+    const commoditySlug = WFP_COMMODITY_MAP[commodityName.trim()];
+    if (!commoditySlug) continue;
+
+    const marketSlug = WFP_MARKET_MAP[marketName.trim()];
+    if (!marketSlug) continue;
+
+    const price = parseFloat(priceStr);
+    if (isNaN(price) || price <= 0) continue;
+
+    results.push({
+      slug: commoditySlug,
+      market: marketSlug,
+      price_date: dateStr.trim(),
+      avg_price: price,
+      unit: unitStr.trim().toLowerCase() === "kg" ? "kg" : "liter",
+    });
+  }
+
+  console.log(`[scraper/wfp] Found ${results.length} WFP rows for ${target}`);
+  return results;
+}
+
 // ─── Main scrape function ─────────────────────────────────────────────────────
 
 export async function runScrape(opts?: {
-  /** Override the stored price_date. Useful for testing or manual re-runs.
-   *  Does NOT change which page is fetched — the source only serves today's data. */
+  /** Override the stored price_date. Useful for testing or manual re-runs. */
   date?: string;
+  /** Skip AMPIS scraping (faster for testing) */
+  skipAmpis?: boolean;
+  /** Skip WFP import */
+  skipWfp?: boolean;
 }): Promise<ScrapeResult> {
   const supabase = getServiceClient();
 
-  // Determine the price date to store (AD / Gregorian)
   const priceDate =
     opts?.date ?? new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
 
@@ -292,6 +399,7 @@ export async function runScrape(opts?: {
   }
 
   const dbMap = new Map(commodityRows.map((c) => [c.name_ne, c]));
+  const slugToDb = new Map(commodityRows.map((c) => [c.slug, c]));
 
   // ── Step 2: match raw rows → commodity IDs ────────────────────────────────
   type UpsertRow = {
@@ -299,6 +407,7 @@ export async function runScrape(opts?: {
     market: string;
     source_id: number;
     price_date: string;
+    price_frequency: "daily" | "monthly";
     min_price: number | null;
     max_price: number | null;
     avg_price: number | null;
@@ -310,8 +419,9 @@ export async function runScrape(opts?: {
 
   const officialSourceId = sourceMap.get("official")!;
   const ampisSourceId = sourceMap.get("ampis")!;
+  const wfpSourceId = sourceMap.get("wfp");
 
-  // 1. Process Kalimati - Official (scraped)
+  // 1. Process Kalimati - Official (daily wholesale)
   for (const row of rawRows) {
     const cleaned = normaliseCommodityName(row.rawName);
     const mapEntry = COMMODITY_MAP.get(cleaned);
@@ -332,6 +442,7 @@ export async function runScrape(opts?: {
       market: "kalimati",
       source_id: officialSourceId,
       price_date: priceDate,
+      price_frequency: "daily",
       min_price: row.minPrice,
       max_price: row.maxPrice,
       avg_price: row.avgPrice,
@@ -340,47 +451,76 @@ export async function runScrape(opts?: {
   }
 
   // 2. Fetch AMPIS year and month IDs dynamically
-  const { yearId, monthId } = await fetchAmpisDateIds();
-  console.log(`[scraper] AMPIS dynamic IDs resolved: Year ID = ${yearId}, Month ID = ${monthId}`);
+  if (!opts?.skipAmpis) {
+    const { yearId, monthId } = await fetchAmpisDateIds();
+    console.log(`[scraper] AMPIS dynamic IDs resolved: Year ID = ${yearId}, Month ID = ${monthId}`);
 
-  // 3. Process AMPIS markets sequentially
-  for (const m of AMPIS_MARKETS) {
-    console.log(`[scraper] Scraping AMPIS market: ${m.slug} (ID: ${m.id})...`);
-    const marketRows = await fetchAmpisPriceTable(m.id, yearId, monthId);
-    console.log(`[scraper] Parsed ${marketRows.length} rows for market: ${m.slug}`);
-    
-    for (const row of marketRows) {
-      const cleaned = normaliseCommodityName(row.rawName);
-      const mapEntry = COMMODITY_MAP.get(cleaned);
+    // 3. Process AMPIS markets sequentially (daily wholesale)
+    for (const m of AMPIS_MARKETS) {
+      console.log(`[scraper] Scraping AMPIS market: ${m.slug} (ID: ${m.id})...`);
+      const marketRows = await fetchAmpisPriceTable(m.id, yearId, monthId);
+      console.log(`[scraper] Parsed ${marketRows.length} rows for market: ${m.slug}`);
+      
+      for (const row of marketRows) {
+        const cleaned = normaliseCommodityName(row.rawName);
+        const mapEntry = COMMODITY_MAP.get(cleaned);
 
-      if (!mapEntry) {
-        // Log or track unmatched if helpful, or skip
-        continue;
+        if (!mapEntry) continue;
+
+        const dbEntry = dbMap.get(mapEntry.name_ne);
+        if (!dbEntry) continue;
+
+        toUpsert.push({
+          commodity_id: dbEntry.id,
+          market: m.slug,
+          source_id: ampisSourceId,
+          price_date: priceDate,
+          price_frequency: "daily",
+          min_price: row.minPrice,
+          max_price: row.maxPrice,
+          avg_price: row.avgPrice,
+          unit: mapEntry.unit,
+        });
       }
+    }
+  }
 
-      const dbEntry = dbMap.get(mapEntry.name_ne);
+  // 4. WFP monthly retail prices
+  let wfpCount = 0;
+  if (!opts?.skipWfp && wfpSourceId) {
+    const yearMonth = priceDate.slice(0, 7); // "YYYY-MM"
+    const wfpRows = await fetchWfpPrices({ yearMonth });
+
+    for (const row of wfpRows) {
+      const dbEntry = slugToDb.get(row.slug);
       if (!dbEntry) {
+        console.warn(`[scraper/wfp] No DB entry for slug: ${row.slug}`);
         continue;
       }
 
       toUpsert.push({
         commodity_id: dbEntry.id,
-        market: m.slug,
-        source_id: ampisSourceId,
-        price_date: priceDate,
-        min_price: row.minPrice,
-        max_price: row.maxPrice,
-        avg_price: row.avgPrice,
-        unit: mapEntry.unit,
+        market: row.market,
+        source_id: wfpSourceId,
+        price_date: row.price_date,
+        price_frequency: "monthly",
+        min_price: null,        // WFP provides only a single spot price
+        max_price: null,
+        avg_price: row.avg_price,
+        unit: row.unit,
       });
+      wfpCount++;
     }
+    console.log(`[scraper/wfp] Queued ${wfpCount} WFP rows for upsert.`);
+  } else if (!wfpSourceId) {
+    console.warn("[scraper/wfp] WFP source not found in DB. Run migration SQL first.");
   }
 
   // ── Step 3: upsert into daily_prices ──────────────────────────────────────
   if (toUpsert.length > 0) {
     const { error: upsertErr } = await supabase
       .from("daily_prices")
-      .upsert(toUpsert, { onConflict: "commodity_id,market,source_id,price_date" });
+      .upsert(toUpsert, { onConflict: "commodity_id,market,source_id,price_date,price_frequency" });
 
     if (upsertErr) {
       throw new Error(`Upsert failed: ${upsertErr.message}`);
@@ -396,7 +536,7 @@ export async function runScrape(opts?: {
   }
 
   console.log(
-    `[scraper] Done. date=${priceDate} matched=${toUpsert.length} unmatched=${unmatched.length}`
+    `[scraper] Done. date=${priceDate} matched=${toUpsert.length} wfp=${wfpCount} unmatched=${unmatched.length}`
   );
 
   if (toUpsert.length === 0) {
@@ -409,6 +549,7 @@ export async function runScrape(opts?: {
     ok: true,
     date: priceDate,
     matchedCount: toUpsert.length,
+    wfpCount,
     unmatched,
   };
 }

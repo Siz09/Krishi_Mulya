@@ -13,7 +13,8 @@
     "mushrooms": "Mushrooms",
     "root_vegetables": "Root Vegetables",
     "legumes": "Legumes",
-    "other_grains": "Other Grains"
+    "other_grains": "Other Grains",
+    "staples": "Staples"
   },
   "dashboard": {
     "title": "Today's Wholesale Prices",
@@ -82,8 +83,19 @@
     "source": "Source: Kalimati Fruits & Vegetable Market Development Board, Government of Nepal",
     "updated": "Last updated",
     "source_attribution": "Data Source Attribution",
-    "source_desc": "Pricing details sourced directly from the official daily publications of the Kalimati Fruits & Vegetable Market Development Board, Government of Nepal.",
+    "source_desc": "Daily wholesale prices from Kalimati Market Board & Govt. AMPIS. Monthly retail staple prices from WFP / HDX Food Prices Dataset (CC BY-IGO).",
     "scraper_status": "Scraper Update Status:",
     "scraper_online": "Online (Daily 00:45 UTC)"
+  },
+  "data_freshness": {
+    "daily_wholesale": "Daily Wholesale",
+    "monthly_retail": "Monthly Retail",
+    "source_kalimati": "Kalimati Market Board",
+    "source_ampis": "Govt. AMPIS Feed",
+    "source_wfp": "WFP / HDX Food Prices",
+    "monthly_note": "This is a monthly retail price from the WFP food price monitoring programme. It reflects retail market conditions, not wholesale.",
+    "daily_note": "This is a daily wholesale price from the Kalimati / AMPIS market boards.",
+    "chart_monthly_label": "Monthly Retail Price (NPR/kg)",
+    "chart_daily_label": "Daily Wholesale Price (NPR/kg)"
   }
 }

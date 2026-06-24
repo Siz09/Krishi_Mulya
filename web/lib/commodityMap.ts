@@ -1,16 +1,17 @@
-// Commodity map — maps every Nepali commodity name to its English name,
+// Commodity map — maps every commodity name to its English name,
 // slug, unit, and category.
 //
 // Sources covered:
-//   - kalimatimarket.gov.np  (Kalimati wholesale market)
-//   - ampis.gov.np           (12 regional markets across Nepal)
+//   - kalimatimarket.gov.np  (Kalimati wholesale market)    — daily, wholesale
+//   - ampis.gov.np           (12 regional markets across Nepal) — daily, wholesale
+//   - data.humdata.org/WFP   (WFP / HDX food prices)        — monthly, retail
 //
 // IMMUTABILITY RULE: slugs are generated once and never changed.
 // If name_ne changes, update name_ne only — leave slug alone.
 // If a commodity is retired, set active=false in the DB.
 
 export type CommodityDef = {
-  /** Canonical Nepali name stored in the DB */
+  /** Canonical name stored in the DB (Nepali for Kalimati/AMPIS, English for WFP) */
   name_ne: string;
   name_en: string;
   slug: string;
@@ -26,7 +27,8 @@ export type CommodityDef = {
     | "mushroom"
     | "root_vegetable"
     | "legume"
-    | "other";
+    | "other"
+    | "staple";  // WFP: rice, wheat flour, lentils, cooking oil, sugar, salt
 };
 
 export const COMMODITIES: CommodityDef[] = [
@@ -1684,6 +1686,54 @@ export const COMMODITIES: CommodityDef[] = [
     slug: "makhana",
     unit: "liter",
     category: "dairy",
+  },
+
+  // ─── STAPLES (WFP / HDX) ────────────────────────────────────────────────────────
+  // Sourced from WFP / HDX food prices dataset (CC BY-IGO).
+  // These are RETAIL prices, monthly frequency. They do NOT overlap with
+  // Kalimati or AMPIS commodities. Do NOT add these to COMMODITY_MAP —
+  // WFP scraper matches by English name, not by Nepali name.
+  {
+    name_ne: "चामल (मोटो)",
+    name_en: "Rice (coarse)",
+    slug: "rice-coarse",
+    unit: "kg",
+    category: "staple",
+  },
+  {
+    name_ne: "गहुँको पीठो",
+    name_en: "Wheat flour",
+    slug: "wheat-flour",
+    unit: "kg",
+    category: "staple",
+  },
+  {
+    name_ne: "मसुरको दाल",
+    name_en: "Lentils (red)",
+    slug: "lentils-red",
+    unit: "kg",
+    category: "staple",
+  },
+  {
+    name_ne: "खाना पकाउने तेल",
+    name_en: "Cooking oil",
+    slug: "cooking-oil",
+    unit: "liter",
+    category: "staple",
+  },
+  {
+    name_ne: "चिनी",
+    name_en: "Sugar",
+    slug: "sugar",
+    unit: "kg",
+    category: "staple",
+  },
+  {
+    name_ne: "नून",
+    name_en: "Salt",
+    slug: "salt",
+    unit: "kg",
+    category: "staple",
   },
 ];
 

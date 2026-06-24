@@ -100,3 +100,44 @@ export function formatBSDate(
     return "—";
   }
 }
+
+/**
+ * Formats a Gregorian (AD) date to localized Bikram Sambat (BS) Month & Year.
+ * Used for monthly retail datasets (e.g. WFP).
+ *
+ * @example
+ *   formatMonthlyDate("2026-06-01", "en") → "Ashadh 2083 BS"
+ *   formatMonthlyDate("2026-06-01", "ne") → "असार २०८३"
+ */
+export function formatMonthlyDate(
+  dateInput: string | Date | null | undefined,
+  locale: "en" | "ne"
+): string {
+  if (!dateInput) return "—";
+
+  try {
+    const dateObj =
+      typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+    if (isNaN(dateObj.getTime())) return "—";
+
+    const bsDate = new NepaliDate(dateObj);
+    const bsMonth = bsDate.getMonth(); // 0-11
+    const bsYear = bsDate.getYear();
+
+    const bsMonthsEn = [
+      "Baishakh", "Jestha", "Ashadh", "Shrawan", "Bhadra", "Ashwin",
+      "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"
+    ];
+    const bsMonthsNe = [
+      "वैशाख", "जेठ", "असार", "साउन", "भदौ", "असोज",
+      "कात्तिक", "मंसिर", "पुस", "माघ", "फागुन", "चैत"
+    ];
+
+    const monthLabel = locale === "ne" ? bsMonthsNe[bsMonth] : bsMonthsEn[bsMonth];
+    const yearLabel = locale === "ne" ? toNepaliDigits(String(bsYear)) : String(bsYear);
+
+    return locale === "ne" ? `${monthLabel} ${yearLabel}` : `${monthLabel} ${yearLabel} BS`;
+  } catch {
+    return "—";
+  }
+}

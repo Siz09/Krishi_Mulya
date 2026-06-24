@@ -25,6 +25,7 @@ const CATEGORIES = [
   { id: "meat", label: "Meat", href: "/meat", dictKey: "meat" },
   { id: "dairy", label: "Dairy", href: "/dairy", dictKey: "dairy" },
   { id: "other", label: "Other Grains", href: "/other-grains", dictKey: "other_grains" },
+  { id: "staple", label: "Staples", href: "/staples", dictKey: "staples" },
 ];
 
 export default function CategorySelector({

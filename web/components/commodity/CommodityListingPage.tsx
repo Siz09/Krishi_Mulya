@@ -67,7 +67,8 @@ interface CommodityListingPageProps {
     | "mushroom"
     | "root_vegetable"
     | "legume"
-    | "other";
+    | "other"
+    | "staple";
   title: string;
   sourcePage: string;
   searchParams: Promise<{ q?: string; market?: string; page?: string }>;
@@ -108,7 +109,8 @@ export default async function CommodityListingPage({
   }
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  const isStale = latestDateStr && latestDateStr < todayStr;
+  const isMonthlyListing = category === "staple" || (prices.length > 0 && prices.every(p => p.price_frequency === "monthly"));
+  const isStale = !isMonthlyListing && latestDateStr && latestDateStr < todayStr;
 
   // Pagination Calculations
   const itemsPerPage = 20;

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { getSeoMetadata } from "@/lib/seo";
 import JsonLd from "@/components/shared/JsonLd";
 import { getCommodityWithChange, getCommodityHistory, getObservationsForDate, getPricesAcrossMarkets, getRelatedCommodities } from "@/lib/queries/prices";
-import { formatPrice, formatBSDate } from "@/lib/format";
+import { formatPrice, formatBSDate, formatMonthlyDate } from "@/lib/format";
 import { getProductImageUrl } from "@/lib/commodityDetails";
 import PriceChangeBadge from "@/components/commodity/PriceChangeBadge";
 import PriceChart from "@/components/commodity/PriceChart";
@@ -48,6 +48,7 @@ const CATEGORY_KEYS: Record<string, string> = {
   meat: "meat",
   dairy: "dairy",
   other: "other_grains",
+  staple: "staples",
 };
 
 const getCategoryLink = (category: string, locale: string) => {
@@ -63,6 +64,7 @@ const getCategoryLink = (category: string, locale: string) => {
     meat: "meat",
     dairy: "dairy",
     other: "other-grains",
+    staple: "staples",
   };
   const path = mapping[category] || "";
   return `/${locale}/${path}`;
@@ -86,6 +88,9 @@ const getConfidenceLabel = (confidence: string, locale: "en" | "ne") => {
 const getSourceLabel = (name: string, locale: "en" | "ne") => {
   if (name === "Government AMPIS Feed") {
     return locale === "ne" ? "सरकारी AMPIS फिड" : name;
+  }
+  if (name === "WFP / HDX Food Prices") {
+    return locale === "ne" ? "डब्लुएफपी / एचडीएक्स खाद्यान्न मूल्य" : name;
   }
   return name;
 };
@@ -133,8 +138,9 @@ export default async function CommodityDetailPage(props: PageProps) {
 
   const activeMarket = commodity.market;
   const marketLabel = MARKET_LABELS[activeMarket]?.[locale] || activeMarket;
+  const isMonthly = commodity.price_frequency === "monthly";
 
-  const { history } = await getCommodityHistory(slug, 30, activeMarket); // fetch last 30 days
+  const { history } = await getCommodityHistory(slug, isMonthly ? 730 : 30, activeMarket); // fetch last 2 years for monthly, 30 days for daily
   const observations = commodity.price_date
     ? await getObservationsForDate(commodity.commodity_id, activeMarket, commodity.price_date)
     : [];
@@ -208,7 +214,7 @@ export default async function CommodityDetailPage(props: PageProps) {
           </span>
           {commodity.price_date && (
             <span className="inline-flex items-center rounded-md bg-soil-50 px-2.5 py-1 text-xs font-semibold text-soil-800/70 border border-leaf-100/50">
-              {dict.footer.updated}: {formatBSDate(commodity.price_date, locale)}
+              {dict.footer.updated}: {isMonthly ? formatMonthlyDate(commodity.price_date, locale) : formatBSDate(commodity.price_date, locale)}
             </span>
           )}
         </div>
@@ -220,16 +226,39 @@ export default async function CommodityDetailPage(props: PageProps) {
         {/* Left Column: Stats & Chart */}
         <div className="lg:col-span-8 flex flex-col gap-6">
           
+          {/* Freshness Note / Alert */}
+          <div className={`p-4 rounded-xl border flex items-start gap-3 shadow-sm ${
+            isMonthly
+              ? "bg-amber-50/50 border-amber-200/60 text-amber-900"
+              : "bg-leaf-50/40 border-leaf-100 text-leaf-900"
+          }`}>
+            <div className="shrink-0 mt-0.5">
+              <HelpCircle className={`h-5 w-5 ${isMonthly ? "text-amber-600" : "text-leaf-600"}`} />
+            </div>
+            <div className="text-xs">
+              <span className="font-bold block mb-1">
+                {isMonthly 
+                  ? (dict.data_freshness?.monthly_retail || "Monthly Retail Data") 
+                  : (dict.data_freshness?.daily_wholesale || "Daily Wholesale Data")}
+              </span>
+              <p className="opacity-90 font-medium">
+                {isMonthly
+                  ? (dict.data_freshness?.monthly_note || "This is a monthly retail price from the WFP food price monitoring programme. It reflects retail market conditions, not wholesale.")
+                  : (dict.data_freshness?.daily_note || "This is a daily wholesale price from the Kalimati / AMPIS market boards.")}
+              </p>
+            </div>
+          </div>
+
           {/* Stats Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+          <div className={`grid grid-cols-2 ${isMonthly ? "sm:grid-cols-3" : "sm:grid-cols-5"} gap-4`}>
             
-          <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
+            <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">{dict.commodity.avg}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">{isMonthly ? (locale === "ne" ? "औसत खुदरा मूल्य" : "Avg. Retail Price") : dict.commodity.avg}</span>
                 <div className="group/avgcard relative">
                   <svg className="text-soil-800/30 cursor-help" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
                   <span className="absolute right-0 top-full mt-1 w-56 text-xs font-normal bg-soil-800 text-white rounded-lg px-3 py-2 shadow-lg opacity-0 group-hover/avgcard:opacity-100 pointer-events-none transition-opacity z-50">
-                    {dict.commodity.avg_tooltip}
+                    {isMonthly ? (locale === "ne" ? "डब्लुएफपी द्वारा संकलित यस महिनाको औसत खुदरा मूल्य।" : "The average retail price recorded for this month by WFP.") : dict.commodity.avg_tooltip}
                   </span>
                 </div>
               </div>
@@ -241,59 +270,67 @@ export default async function CommodityDetailPage(props: PageProps) {
               </span>
             </div>
 
-          <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">{dict.commodity.min}</span>
-                <div className="group/mincard relative">
-                  <svg className="text-soil-800/30 cursor-help" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                  <span className="absolute right-0 top-full mt-1 w-56 text-xs font-normal bg-soil-800 text-white rounded-lg px-3 py-2 shadow-lg opacity-0 group-hover/mincard:opacity-100 pointer-events-none transition-opacity z-50">
-                    {dict.commodity.min_tooltip}
-                  </span>
+          {!isMonthly && (
+            <>
+              <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">{dict.commodity.min}</span>
+                  <div className="group/mincard relative">
+                    <svg className="text-soil-800/30 cursor-help" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    <span className="absolute right-0 top-full mt-1 w-56 text-xs font-normal bg-soil-800 text-white rounded-lg px-3 py-2 shadow-lg opacity-0 group-hover/mincard:opacity-100 pointer-events-none transition-opacity z-50">
+                      {dict.commodity.min_tooltip}
+                    </span>
+                  </div>
                 </div>
+                <div className="text-lg sm:text-xl font-extrabold text-blue-600 mt-1">
+                  {formatPrice(commodity.min_price, commodity.unit, locale, { priceOnly: true })}
+                </div>
+                <span className="text-[10px] text-soil-800/40 mt-1">
+                  {locale === "ne" ? `प्रति ${commodity.unit}` : `per ${commodity.unit}`}
+                </span>
               </div>
-              <div className="text-lg sm:text-xl font-extrabold text-blue-600 mt-1">
-                {formatPrice(commodity.min_price, commodity.unit, locale, { priceOnly: true })}
-              </div>
-              <span className="text-[10px] text-soil-800/40 mt-1">
-                {locale === "ne" ? `प्रति ${commodity.unit}` : `per ${commodity.unit}`}
-              </span>
-            </div>
 
-          <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">{dict.commodity.max}</span>
-                <div className="group/maxcard relative">
-                  <svg className="text-soil-800/30 cursor-help" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                  <span className="absolute right-0 top-full mt-1 w-56 text-xs font-normal bg-soil-800 text-white rounded-lg px-3 py-2 shadow-lg opacity-0 group-hover/maxcard:opacity-100 pointer-events-none transition-opacity z-50">
-                    {dict.commodity.max_tooltip}
-                  </span>
+              <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">{dict.commodity.max}</span>
+                  <div className="group/maxcard relative">
+                    <svg className="text-soil-800/30 cursor-help" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    <span className="absolute right-0 top-full mt-1 w-56 text-xs font-normal bg-soil-800 text-white rounded-lg px-3 py-2 shadow-lg opacity-0 group-hover/maxcard:opacity-100 pointer-events-none transition-opacity z-50">
+                      {dict.commodity.max_tooltip}
+                    </span>
+                  </div>
                 </div>
+                <div className="text-lg sm:text-xl font-extrabold text-amber-600 mt-1">
+                  {formatPrice(commodity.max_price, commodity.unit, locale, { priceOnly: true })}
+                </div>
+                <span className="text-[10px] text-soil-800/40 mt-1">
+                  {locale === "ne" ? `प्रति ${commodity.unit}` : `per ${commodity.unit}`}
+                </span>
               </div>
-              <div className="text-lg sm:text-xl font-extrabold text-amber-600 mt-1">
-                {formatPrice(commodity.max_price, commodity.unit, locale, { priceOnly: true })}
-              </div>
-              <span className="text-[10px] text-soil-800/40 mt-1">
-                {locale === "ne" ? `प्रति ${commodity.unit}` : `per ${commodity.unit}`}
-              </span>
-            </div>
+            </>
+          )}
 
             <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">{dict.commodity.change_1d}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">
+                {isMonthly ? (locale === "ne" ? "१-महिना परिवर्तन" : "1-Month Change") : dict.commodity.change_1d}
+              </span>
               <div className="mt-1">
                 <PriceChangeBadge pct={commodity.change_1d_pct} locale={locale} />
               </div>
               <span className="text-[10px] text-soil-800/40 mt-2">
-                {locale === "ne" ? "हिजोको तुलनामा" : "vs yesterday"}
+                {isMonthly ? (locale === "ne" ? "गत महिनाको तुलनामा" : "vs last month") : (locale === "ne" ? "हिजोको तुलनामा" : "vs yesterday")}
               </span>
             </div>
 
             <div className="bg-white border border-leaf-100 rounded-xl p-4 flex flex-col justify-between shadow-sm">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">{dict.commodity.change_7d}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/50">
+                {isMonthly ? (locale === "ne" ? "७-महिना परिवर्तन" : "7-Month Change") : dict.commodity.change_7d}
+              </span>
               <div className="mt-1">
                 <PriceChangeBadge pct={commodity.change_7d_pct} locale={locale} />
               </div>
               <span className="text-[10px] text-soil-800/40 mt-2">
-                {locale === "ne" ? "गत हप्ताको तुलनामा" : "vs last week"}
+                {isMonthly ? (locale === "ne" ? "७ महिना अघिको तुलनामा" : "vs 7 months ago") : (locale === "ne" ? "गत हप्ताको तुलनामा" : "vs last week")}
               </span>
             </div>
 
@@ -306,10 +343,12 @@ export default async function CommodityDetailPage(props: PageProps) {
                 {dict.commodity.price_history}
               </h3>
               <span className="text-[10px] font-bold bg-leaf-50 text-leaf-700 px-2 py-0.5 rounded border border-leaf-100">
-                {locale === "ne" ? "३० दिन" : "30 Days"}
+                {isMonthly
+                  ? (locale === "ne" ? "२ वर्ष" : "2 Years")
+                  : (locale === "ne" ? "३० दिन" : "30 Days")}
               </span>
             </header>
-            <PriceChart history={history} locale={locale} />
+            <PriceChart history={history} locale={locale} frequency={commodity.price_frequency} />
           </div>
 
         </div>
@@ -374,7 +413,9 @@ export default async function CommodityDetailPage(props: PageProps) {
               {observations.length > 0 && (
                 <div className="border-t border-leaf-100/60 pt-3">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-soil-800/40 block mb-2">
-                    {locale === "ne" ? "आजका स्रोत रिपोर्टहरू" : "Source Reports for Today"}
+                    {isMonthly
+                      ? (locale === "ne" ? "यस महिनाका स्रोत रिपोर्टहरू" : "Source Reports for This Month")
+                      : (locale === "ne" ? "आजका स्रोत रिपोर्टहरू" : "Source Reports for Today")}
                   </span>
                   <div className="flex flex-col gap-1.5">
                     {observations.map((obs) => (

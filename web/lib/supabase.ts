@@ -13,7 +13,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // Mirror the DB schema 1:1. Pages and query functions use these — do not
 // redefine shapes per-component.
 
-export type Category = "vegetable" | "fruit" | "fish";
+export type Category = "vegetable" | "fruit" | "fish" | "meat" | "dairy" | "spice" | "leafy_green" | "mushroom" | "root_vegetable" | "legume" | "other" | "staple";
+export type PriceFrequency = "daily" | "monthly";
 export type Locale = "en" | "ne";
 
 export type Commodity = {
@@ -50,6 +51,7 @@ export type DailyPrice = {
   avg_price: number | null;
   unit: string;
   scraped_at: string;
+  price_frequency?: PriceFrequency;
 };
 
 // ─── View types ───────────────────────────────────────────────────────────────
@@ -64,6 +66,7 @@ export type LatestPriceWithChange = {
   category: Category;
   market: string;
   price_date: string;
+  price_frequency: PriceFrequency;  // 'daily' (Kalimati/AMPIS) or 'monthly' (WFP)
   avg_price: number | null;
   min_price: number | null;
   max_price: number | null;

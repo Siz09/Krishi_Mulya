@@ -20,7 +20,8 @@ export async function getLatestPrices(opts?: {
     | "mushroom"
     | "root_vegetable"
     | "legume"
-    | "other";
+    | "other"
+    | "staple";
   search?: string;
   market?: string;
 }): Promise<LatestPriceWithChange[]> {

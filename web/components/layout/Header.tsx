@@ -48,6 +48,12 @@ export default function Header({ locale = "en", dict }: HeaderProps) {
           >
             {dict.nav.fish}
           </Link>
+          <Link
+            href={`/${locale}/staples`}
+            className="text-sm font-semibold text-soil-800/80 hover:text-leaf-600 transition-colors"
+          >
+            {dict.nav.staples}
+          </Link>
         </nav>
 
         {/* Language switcher */}

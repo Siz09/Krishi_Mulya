@@ -2,10 +2,12 @@
 -- Krishi Mulya — Supabase Schema
 -- Run this in: Supabase Dashboard → SQL Editor → New Query → Run
 --
+-- For incremental migrations, see: supabase/migrations/
+--
 -- Sections:
 --   1. Tables & Indexes
 --   2. Row Level Security (RLS)
---   3. Views (price_changes, latest_prices_with_changes)
+--   3. Views (daily_consensus_prices, price_changes, latest_prices_with_changes)
 --   4. Phase 2+ reserved tables (present but unused by v1 app code)
 -- =============================================================================
 
@@ -27,12 +29,13 @@ create table if not exists commodities (
   name_ne    text not null,
   unit       text not null default 'kg',      -- 'kg' | 'dozen' | 'piece'
   category   text not null default 'vegetable'
-               -- all AMPIS + Kalimati categories
+               -- Kalimati + AMPIS categories:
                check (category in (
                  'vegetable', 'fruit', 'fish',
                  'meat', 'dairy', 'spice',
                  'leafy_green', 'mushroom',
-                 'root_vegetable', 'legume', 'other'
+                 'root_vegetable', 'legume', 'other',
+                 'staple'   -- WFP: rice, wheat, lentils, cooking oil, sugar, salt
                )),
   active     boolean not null default true,
   created_at timestamptz not null default now()
@@ -65,19 +68,23 @@ create table if not exists sources (
 -- One row per commodity × market × source × day.
 -- ---------------------------------------------------------------------------
 create table if not exists daily_prices (
-  id           bigserial primary key,
-  commodity_id int not null references commodities(id) on delete cascade,
-  market       text not null default 'kalimati',
-  source_id    int not null references sources(id) on delete cascade,
-  price_date   date not null,
-  min_price    numeric(10, 2),
-  max_price    numeric(10, 2),
-  avg_price    numeric(10, 2),
-  unit         text not null default 'kg',
-  scraped_at   timestamptz not null default now(),
+  id              bigserial primary key,
+  commodity_id    int not null references commodities(id) on delete cascade,
+  market          text not null default 'kalimati',
+  source_id       int not null references sources(id) on delete cascade,
+  price_date      date not null,
+  price_frequency text not null default 'daily'
+                    check (price_frequency in ('daily', 'monthly')),
+  min_price       numeric(10, 2),
+  max_price       numeric(10, 2),
+  avg_price       numeric(10, 2),
+  unit            text not null default 'kg',
+  scraped_at      timestamptz not null default now(),
 
-  -- Idempotency constraint: one price row per commodity per market per source per day.
-  unique (commodity_id, market, source_id, price_date)
+  -- One price row per commodity per market per source per day per frequency.
+  -- This allows the same commodity/market/date to have both a daily wholesale
+  -- row (Kalimati/AMPIS) AND a monthly retail row (WFP) without conflict.
+  unique (commodity_id, market, source_id, price_date, price_frequency)
 );
 
 create index if not exists idx_daily_prices_date
@@ -85,6 +92,9 @@ create index if not exists idx_daily_prices_date
 
 create index if not exists idx_daily_prices_commodity
   on daily_prices(commodity_id, price_date desc);
+
+create index if not exists idx_daily_prices_frequency
+  on daily_prices(price_frequency, price_date desc);
 
 
 -- ---------------------------------------------------------------------------
@@ -139,15 +149,17 @@ create policy "Anyone can submit interest"
 -- ---------------------------------------------------------------------------
 -- daily_consensus_prices
 -- Aggregates multiple source observations per commodity per market per day.
+-- Groups by price_frequency so daily and monthly data are NEVER mixed.
 -- ---------------------------------------------------------------------------
 create or replace view daily_consensus_prices as
 select
   commodity_id,
   market,
   price_date,
-  round(avg(avg_price), 2) as avg_price,
-  round(avg(min_price), 2) as min_price,
-  round(avg(max_price), 2) as max_price,
+  price_frequency,
+  round(avg(avg_price), 2)  as avg_price,
+  round(avg(min_price), 2)  as min_price,
+  round(avg(max_price), 2)  as max_price,
   count(distinct source_id) as source_count,
   case
     when count(distinct source_id) <= 1 then 'High (Single Source)'
@@ -156,28 +168,30 @@ select
     else 'Low (Discrepancy)'
   end as confidence
 from daily_prices
-group by commodity_id, market, price_date;
+group by commodity_id, market, price_date, price_frequency;
 
 
 -- ---------------------------------------------------------------------------
 -- price_changes
 -- Adds LAG-based window columns for 1-day and 7-day previous avg prices.
+-- Partitions by price_frequency so daily/monthly changes never cross-pollinate.
 -- ---------------------------------------------------------------------------
 create or replace view price_changes as
 select
   commodity_id,
   market,
   price_date,
+  price_frequency,
   avg_price,
   min_price,
   max_price,
   source_count,
   confidence,
   lag(avg_price, 1) over (
-    partition by commodity_id, market order by price_date
+    partition by commodity_id, market, price_frequency order by price_date
   ) as avg_price_1d_ago,
   lag(avg_price, 7) over (
-    partition by commodity_id, market order by price_date
+    partition by commodity_id, market, price_frequency order by price_date
   ) as avg_price_7d_ago
 from daily_consensus_prices;
 
@@ -185,6 +199,8 @@ from daily_consensus_prices;
 -- ---------------------------------------------------------------------------
 -- latest_prices_with_changes
 -- Primary data source for the dashboard and category pages.
+-- Exposes price_frequency so the UI can show 'Daily Wholesale' vs
+-- 'Monthly Retail' badges without additional queries.
 -- ---------------------------------------------------------------------------
 create or replace view latest_prices_with_changes as
 select
@@ -196,6 +212,7 @@ select
   c.category,
   pc.market,
   pc.price_date,
+  pc.price_frequency,
   pc.avg_price,
   pc.min_price,
   pc.max_price,
@@ -222,8 +239,9 @@ join price_changes pc on pc.commodity_id = c.id
 where pc.price_date = (
     select max(dp2.price_date)
     from daily_consensus_prices dp2
-    where dp2.commodity_id = c.id
-      and dp2.market = pc.market
+    where dp2.commodity_id    = c.id
+      and dp2.market          = pc.market
+      and dp2.price_frequency = pc.price_frequency
   );
 
 
